@@ -1,0 +1,66 @@
+{% extends 'layouts/adopter.html' %}
+{% block title %}Emergency vet finder · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leaflet.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lifestyle.css') }}">
+{% endblock %}
+{% block page_head %}{% endblock %}
+{% block content %}
+<div class="emergency-banner card">
+  <div>
+    <div class="fw-600">Pet emergency?</div>
+    <div class="text-sm">If your pet is struggling to breathe, bleeding heavily, or unconscious, call now.</div>
+  </div>
+  <a class="btn btn-danger" href="tel:112">Call nearest 24/7 clinic</a>
+</div>
+
+<h2 class="mt-5">Emergency clinics open now</h2>
+<div class="places-layout" x-data="emergencyMap()">
+  <div class="places-sidebar stack">
+    {% for c in clinics %}
+      <div class="card emergency-clinic">
+        <div class="row spread">
+          <div>
+            <div class="fw-600">{{ loop.index }}. {{ c.name }}</div>
+            <div class="text-sm text-muted">{{ c.distance_km }} km · {{ c.address }}</div>
+            {% if c.note %}<div class="text-sm">{{ c.note }}</div>{% endif %}
+          </div>
+          <span class="badge badge-danger">24/7</span>
+        </div>
+        <div class="row mt-4">
+          <a class="btn btn-danger btn-sm" href="tel:112">Call</a>
+          <button class="btn btn-outline btn-sm" type="button" @click="focus({{ c.lat }}, {{ c.lng }})">Directions</button>
+        </div>
+      </div>
+    {% else %}
+      <div class="card"><p class="text-muted mb-0">No emergency clinics listed.</p></div>
+    {% endfor %}
+    <div class="card card-muted">
+      <p class="text-sm text-muted mb-0">While you travel: keep your pet warm and still, don't give food or human medicine, and bring any packaging if they swallowed something.</p>
+    </div>
+  </div>
+  <div id="emergency-map" class="places-map"></div>
+</div>
+
+<script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>
+<script>
+  function emergencyMap() {
+    return {
+      map: null,
+      init() {
+        this.map = L.map('emergency-map').setView([13.0067, 80.2570], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(this.map);
+        fetch(`{{ url_for('learning.emergency_json') }}`).then(r => r.json()).then(clinics => {
+          clinics.forEach((c, i) => {
+            L.circleMarker([c.lat, c.lng], {
+              radius: 11, color: '#fff', weight: 2, fillColor: '#c0392b', fillOpacity: 1
+            }).addTo(this.map).bindPopup(`<strong>${c.name}</strong><br>${c.note || ''}`);
+          });
+        });
+      },
+      focus(lat, lng) { this.map.setView([lat, lng], 15); }
+    };
+  }
+</script>
+{% endblock %}

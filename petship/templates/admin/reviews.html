@@ -1,0 +1,30 @@
+{% extends 'layouts/admin.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Review moderation · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Review moderation{% endblock %}
+{% block page_subtitle %}{{ reviews|length }} recent reviews{% endblock %}
+{% block content %}
+<div class="grid grid-2">
+  {% for r in reviews %}
+    <div class="card">
+      <div class="row spread">
+        <div class="fw-600">{{ r.author.full_name }} — {{ r.target_type.value }}
+          {% if r.hidden %}{{ badge('Hidden', 'danger') }}{% endif %}</div>
+        <div class="text-primary">{{ '★' * r.rating }}{{ '☆' * (5 - r.rating) }}</div>
+      </div>
+      {% if r.body %}<p class="text-sm mt-4">"{{ r.body }}"</p>{% endif %}
+      <form method="post" action="{{ url_for('admin_mod.review_action', review_id=r.id) }}" class="row">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if r.hidden %}
+          <button class="btn btn-outline btn-sm" name="action" value="keep" type="submit">Keep</button>
+        {% else %}
+          <button class="btn btn-outline btn-sm" name="action" value="keep" type="submit">Keep</button>
+          <button class="btn btn-danger btn-sm" name="action" value="hide" type="submit">Hide</button>
+        {% endif %}
+      </form>
+    </div>
+  {% else %}
+    <div class="card" style="grid-column:1/-1;"><p class="text-muted mb-0">No reviews to moderate.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

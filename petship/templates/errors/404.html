@@ -1,0 +1,19 @@
+{% extends 'errors/_error_base.html' %}
+{% block title %}404 · Page not found · {{ APP_NAME }}{% endblock %}
+{% block code %}404{% endblock %}
+{% block headline %}This page wandered off{% endblock %}
+{% block copy %}Like a curious pup, the page you're looking for has gone exploring. Let's get you back on track.{% endblock %}
+{% block actions %}
+  <a class="btn btn-primary" href="{{ url_for('pets.home') }}">Back to Home</a>
+  <a class="btn btn-outline" href="{{ url_for('pets.browse') }}">Browse Pets</a>
+{% endblock %}
+{% block art_bg %}var(--warm-beige){% endblock %}
+{% block art %}
+<svg width="70%" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+  <circle cx="50" cy="42" r="26" fill="#A85D43" opacity="0.85"/>
+  <circle cx="40" cy="38" r="4" fill="#fff"/><circle cx="60" cy="38" r="4" fill="#fff"/>
+  <path d="M42 54 q8 8 16 0" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <ellipse cx="30" cy="20" rx="7" ry="11" fill="#46352F"/>
+  <ellipse cx="70" cy="20" rx="7" ry="11" fill="#46352F"/>
+</svg>
+{% endblock %}

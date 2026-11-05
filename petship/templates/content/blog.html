@@ -1,0 +1,39 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag %}
+{% block title %}The Petship Journal · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/content.css') }}">
+{% endblock %}
+{% block content %}
+<div class="row spread row-wrap">
+  <div>
+    <h1 class="mb-0">The Petship Journal</h1>
+    <p class="text-muted">Care tips, training guides, and stories from our community.</p>
+  </div>
+  {% if current_user.is_authenticated %}
+    <a class="btn btn-primary" href="{{ url_for('content.write_blog') }}">Write a post</a>
+  {% endif %}
+</div>
+<div class="row row-wrap mt-4">
+  {% for c in categories %}
+    <a class="pill {{ 'is-active' if active_category == c }}"
+       href="{{ url_for('content.blog', category=c) }}">{{ c }}</a>
+  {% endfor %}
+</div>
+
+<div class="blog-grid mt-5">
+  {% for post in posts %}
+    <a class="blog-card card card-flush" href="{{ url_for('content.blog_post', slug=post.slug) }}">
+      <div class="blog-cover" data-cat="{{ post.category }}"
+           {% if post.cover_url %}style="background-image:url('{{ post.cover_url }}')"{% endif %}></div>
+      <div class="blog-card-body">
+        {{ tag(post.category) }}
+        <h3 class="mt-4 mb-0">{{ post.title }}</h3>
+        <p class="text-sm text-muted">{{ post.read_minutes }} min read</p>
+      </div>
+    </a>
+  {% else %}
+    <p class="text-muted">No articles yet.</p>
+  {% endfor %}
+</div>
+{% endblock %}

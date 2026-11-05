@@ -1,0 +1,51 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Find a shelter · {{ APP_NAME }}{% endblock %}
+{% block content %}
+<div class="row spread row-wrap mb-5">
+  <div>
+    <h1 class="mb-1">Find a shelter</h1>
+    <p class="text-muted mb-0">Search shelters and read adopter reviews before you connect.</p>
+  </div>
+  <form method="get" action="{{ url_for('shelter.directory') }}" class="row row-wrap">
+    <label class="sr-only" for="shelter-search">Shelter name or city</label>
+    <input id="shelter-search" class="input" type="search" name="q" value="{{ search }}"
+           placeholder="Shelter name or city" maxlength="100">
+    <button class="btn btn-primary" type="submit">Search</button>
+  </form>
+</div>
+
+{% if search %}
+  <p class="text-sm text-muted mb-4">Results for “{{ search }}”</p>
+{% endif %}
+<div class="grid grid-3">
+  {% for shelter in shelters %}
+    {% set rating = ratings.get(shelter.id) %}
+    <article class="card">
+      <div class="row spread">
+        <h2 class="h3 mb-0">{{ shelter.name }}</h2>
+        {% if shelter.is_verified %}{{ badge('Verified', 'success') }}{% endif %}
+      </div>
+      <p class="text-sm text-muted mt-2">{{ shelter.city or 'Location not listed' }}</p>
+      <p class="text-sm">{{ shelter.about or 'This shelter has not added a description yet.' }}</p>
+      <p class="text-sm text-primary">
+        {% if rating %}
+          {{ rating.average }} ★ · {{ rating.count }} review{{ '' if rating.count == 1 else 's' }}
+        {% else %}
+          No reviews yet
+        {% endif %}
+      </p>
+      <div class="row row-wrap mt-4">
+        <a class="btn btn-outline btn-sm" href="{{ url_for('shelter.public', slug=shelter.slug) }}">View shelter</a>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('reviews.show', target_type='shelter', target_id=shelter.id) }}">Rate &amp; review</a>
+      </div>
+    </article>
+  {% else %}
+    <div class="card">
+      <p class="text-muted mb-0">
+        {% if search %}No shelters matched your search. Try another name or city.{% else %}No shelters are listed yet.{% endif %}
+      </p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

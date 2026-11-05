@@ -1,0 +1,30 @@
+/* Adoption wizard + tracking (Task 13) */
+
+.wizard-main { padding: var(--space-6) 0 var(--space-8); }
+.wizard-steps { display: flex; gap: var(--space-2); margin-bottom: var(--space-5); flex-wrap: wrap; }
+.wizard-step { display: flex; align-items: center; gap: var(--space-2); font-size: 0.85rem; color: var(--color-text-muted); padding: 0.4rem 0.8rem; border-radius: var(--radius-pill); }
+.wizard-step-num { width: 24px; height: 24px; border-radius: 50%; background: var(--warm-beige); color: var(--deep-espresso); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.8rem; }
+.wizard-step.is-current { color: var(--color-primary); font-weight: 600; }
+.wizard-step.is-current .wizard-step-num { background: var(--color-primary); color: #fff; }
+.wizard-step.is-done .wizard-step-num { background: var(--color-success); color: #fff; }
+
+.wizard-layout { display: grid; grid-template-columns: 1fr 300px; gap: var(--space-5); align-items: start; }
+.wizard-aside { position: sticky; top: var(--space-5); }
+.review-list { margin: 0; }
+.review-row { padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); }
+.review-row:last-child { border-bottom: none; }
+
+/* Tracking */
+.track-layout { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--space-5); align-items: start; }
+.track-timeline { list-style: none; margin: 0; padding: 0; }
+.track-item { display: flex; gap: var(--space-3); padding-bottom: var(--space-5); position: relative; }
+.track-item:not(:last-child)::before { content: ''; position: absolute; left: 15px; top: 32px; bottom: 0; width: 2px; background: var(--color-border); }
+.track-dot { width: 32px; height: 32px; border-radius: 50%; background: var(--warm-beige); color: var(--deep-espresso); display: flex; align-items: center; justify-content: center; font-weight: 600; flex-shrink: 0; z-index: 1; }
+.track-item.is-done .track-dot { background: var(--color-success); color: #fff; }
+.track-item.is-current .track-dot { background: var(--color-primary); color: #fff; }
+.application-row { text-decoration: none; color: inherit; }
+.application-row:hover { text-decoration: none; box-shadow: var(--shadow-md); }
+
+@media (max-width: 860px) {
+  .wizard-layout, .track-layout { grid-template-columns: 1fr; }
+}

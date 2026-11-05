@@ -1,0 +1,47 @@
+{% extends 'layouts/admin.html' %}
+{% from 'partials/macros.html' import stat_card, badge %}
+{% block title %}Lost &amp; Found overview · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Lost &amp; Found overview{% endblock %}
+{% block page_subtitle %}Review community lost and found pet reports.{% endblock %}
+{% block content %}
+<div class="grid grid-4 mb-5">
+  {{ stat_card('Recent reports', counts.recent) }}
+  {{ stat_card('Lost', counts.lost) }}
+  {{ stat_card('Reunited', counts.reunited) }}
+</div>
+<nav class="row row-wrap mb-4" aria-label="Lost and Found report views">
+  {% for view, label in [('recent', 'Recent'), ('lost', 'Lost'), ('reunited', 'Reunited')] %}
+    <a class="pill {{ 'is-active' if selected_view == view }}"
+       href="{{ url_for('admin.lost_found', view=view) }}">{{ label }} ({{ counts[view] }})</a>
+  {% endfor %}
+</nav>
+<div class="card">
+  <h2 class="h3">{{ selected_view|capitalize }} reports</h2>
+  <div style="overflow-x: auto;">
+    <table class="data-table">
+      <thead>
+        <tr><th>Pet</th><th>Type</th><th>Last seen / found</th><th>Posted by</th><th>Status</th><th>Date</th></tr>
+      </thead>
+      <tbody>
+        {% for report in reports %}
+          <tr>
+            <td>
+              <a href="{{ url_for('lostfound.detail', report_id=report.id) }}">{{ report.pet_name or report.species or 'Pet' }}</a>
+              {% if report.species %}<div class="text-sm text-muted">{{ report.species }}</div>{% endif %}
+              {% if report.description %}<details><summary>Details</summary><p>{{ report.description }}</p></details>{% endif %}
+            </td>
+            {% set report_group = 'reunited' if report.kind.value == 'found' or report.status.value == 'reunited' else 'lost' %}
+            <td>{{ badge('Reunited' if report_group == 'reunited' else 'Lost', 'success' if report_group == 'reunited' else 'danger') }}</td>
+            <td>{{ report.location or 'Not provided' }}</td>
+            <td>{{ report.reporter.full_name if report.reporter else 'Deleted account' }}</td>
+            <td>{{ badge(report.status.label, 'success' if report.status.value == 'reunited' or report.kind.value == 'found' else 'warning' if report.status.value == 'active' else 'neutral') }}</td>
+            <td>{{ report.created_at.strftime('%d %b %Y') }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6"><p class="text-muted mb-0">No reports in this view.</p></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

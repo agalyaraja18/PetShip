@@ -1,0 +1,43 @@
+{% extends 'layouts/vet.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Appointment management · {{ APP_NAME }}{% endblock %}
+{% block page_head %}
+  <div class="row spread">
+    <h1 class="mb-0">Appointment management</h1>
+  </div>
+{% endblock %}
+{% block content %}
+<div class="stack mb-5">
+  <div class="row row-wrap">
+    {% for key, label in categories %}
+      <a class="pill {{ 'is-active' if category == key }}" href="{{ url_for('vet_workspace.appointments', category=key, period=period) }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+  <div class="row row-wrap">
+    {% for key, label in periods %}
+      <a class="pill {{ 'is-active' if period == key }}" href="{{ url_for('vet_workspace.appointments', category=category, period=key) }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+</div>
+{% if grouped %}
+  {% for category_label, appts in grouped.items() %}
+    <div class="card mb-4">
+      <h3 class="mb-4">{{ category_label }}</h3>
+      {% for a in appts %}
+        <a class="row spread toggle-row appointment-row" href="{{ url_for('vet_workspace.patient_detail', appt_id=a.id) }}">
+          <div class="row" style="gap: var(--space-3);">
+            <div class="appt-time">{{ a.scheduled_for.strftime('%H:%M') }}</div>
+            <div>
+              <div class="fw-600">{{ pet_labels.get(a.id, a.note or 'Patient') }}</div>
+              <div class="text-sm text-muted">{{ a.service }} · {{ a.scheduled_for.strftime('%a, %d %b %Y') }}</div>
+            </div>
+          </div>
+          {{ badge(a.status.label, a.status.badge_variant) }}
+        </a>
+      {% endfor %}
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="card"><p class="text-muted mb-0">No appointments match these filters.</p></div>
+{% endif %}
+{% endblock %}

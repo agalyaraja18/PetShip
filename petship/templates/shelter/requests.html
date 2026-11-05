@@ -1,0 +1,35 @@
+{% extends 'layouts/shelter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Adoption requests · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Adoption requests{% endblock %}
+{% block page_subtitle %}{{ scored|length }} requests · sorted by match score{% endblock %}
+{% block content %}
+<div class="row row-wrap mb-4">
+  {% for key, label in [('open','Open'),('submitted','New'),('review','In review'),('home_visit','Home visit'),('complete','Approved'),('declined','Declined'),('all','All')] %}
+    <a class="pill {{ 'is-active' if status == key }}" href="{{ url_for('shelter_requests.index', status=key) }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="stack">
+  {% for application, score in scored %}
+    <a class="card row spread application-row" href="{{ url_for('shelter_requests.detail', app_id=application.id) }}">
+      <div class="row" style="gap: var(--space-4);">
+        <div class="avatar avatar-md profile-initials">{{ application.applicant.initials }}</div>
+        <div>
+          <div class="fw-600">{{ application.applicant.full_name }}</div>
+          <div class="text-sm text-muted">
+            {{ (application.answers or {}).get('home_type', 'Applicant') }} ·
+            applying for {{ application.pet.name }}
+          </div>
+        </div>
+      </div>
+      <div class="row" style="gap: var(--space-4);">
+        <span class="match-score">{{ score }}% match</span>
+        {{ badge(application.stage.label, 'primary') }}
+      </div>
+    </a>
+  {% else %}
+    <div class="card"><p class="text-muted mb-0">No requests in this view.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

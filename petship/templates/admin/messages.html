@@ -1,0 +1,32 @@
+{% extends 'layouts/admin.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Contact messages · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Contact messages{% endblock %}
+{% block page_subtitle %}Messages submitted through the PetShip contact page.{% endblock %}
+{% block content %}
+<div class="stack">
+  {% for item in messages %}
+    <article class="card">
+      <div class="row spread row-wrap">
+        <div>
+          <h2 class="h3 mb-1">{{ item.name }}{% if item.topic %} · {{ item.topic }}{% endif %}</h2>
+          <a href="mailto:{{ item.email }}">{{ item.email }}</a>
+          <div class="text-sm text-muted mt-2">{{ item.created_at.strftime('%d %b %Y, %I:%M %p') }}</div>
+        </div>
+        {{ badge('Handled' if item.handled else 'Needs response', 'success' if item.handled else 'warning') }}
+      </div>
+      <p class="mt-4">{{ item.message }}</p>
+      <form method="post" action="{{ url_for('admin.message_action', message_id=item.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if item.handled %}
+          <button class="btn btn-outline btn-sm" type="submit" name="action" value="unhandled">Mark needs response</button>
+        {% else %}
+          <button class="btn btn-primary btn-sm" type="submit" name="action" value="handled">Mark handled</button>
+        {% endif %}
+      </form>
+    </article>
+  {% else %}
+    <div class="card"><p class="text-muted mb-0">No contact messages have been received.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

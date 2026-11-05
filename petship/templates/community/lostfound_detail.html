@@ -1,0 +1,78 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}{{ report.pet_name or 'Pet' }} · Lost & Found · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/community.css') }}">
+{% endblock %}
+{% block content %}
+<div class="lf-detail-layout">
+  <div class="card">
+    <div class="lf-photo-lg {{ 'lost' if report.kind.value == 'lost' else 'found' }}"
+         {% if report.photo_url %}style="background-image:url('{{ report.photo_url }}')"{% endif %}>
+      {{ badge(report.kind.label|upper, 'danger' if report.kind.value == 'lost' else 'info') }}
+    </div>
+    <h1 class="mt-4 mb-0">{{ report.pet_name or (report.species or 'Pet') }}</h1>
+    <p class="text-muted">{{ report.location or '' }} · reported {{ report.created_at.strftime('%d %b %Y') }}</p>
+    <p>{{ report.description or '' }}</p>
+    {% if report.status.value == 'reunited' %}
+      {{ badge('Reunited 🎉', 'success') }}
+    {% elif current_user.is_authenticated and current_user.id == report.reporter_id %}
+      <form method="post" action="{{ url_for('lostfound.reunite', report_id=report.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-primary" type="submit">Mark as reunited</button>
+      </form>
+    {% endif %}
+    {% if current_user.is_authenticated and current_user.id == report.reporter_id and owner_tips %}
+      <section class="mt-5">
+        <h2 class="h3">People who may have found your pet</h2>
+        <div class="stack">
+          {% for tip in owner_tips %}
+            <article class="card">
+              <strong>{{ tip.name }}</strong>
+              <p class="text-sm mb-1">Contact: {{ tip.contact }}</p>
+              <p class="mb-0">{{ tip.message }}</p>
+              <div class="text-sm text-muted mt-2">{{ tip.created_at.strftime('%d %b %Y, %I:%M %p') }}</div>
+            </article>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  </div>
+
+  <aside class="card">
+    {% if report.kind.value == 'lost' and report.status.value == 'active' and current_user.is_authenticated and current_user.id != report.reporter_id %}
+      <section class="mb-5">
+        <h2 class="h3">Found this pet?</h2>
+        <p class="text-sm text-muted">Send your contact details and information privately to the person who posted this alert.</p>
+        <form method="post" action="{{ url_for('lostfound.found_tip', report_id=report.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="field">
+            <label for="tip-contact">Your phone or email</label>
+            <input id="tip-contact" class="input" name="contact" maxlength="200" required>
+          </div>
+          <div class="field">
+            <label for="tip-message">What did you find?</label>
+            <textarea id="tip-message" class="textarea" name="message" maxlength="2000" rows="4" required></textarea>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Send private tip</button>
+        </form>
+      </section>
+    {% endif %}
+    <h3>Possible matches</h3>
+    <p class="text-sm text-muted">Suggested by photo similarity. These are possibilities, not confirmed matches.</p>
+    {% for match, score in matches %}
+      <a class="row spread toggle-row application-row" href="{{ url_for('lostfound.detail', report_id=match.id) }}">
+        <div class="row" style="gap: var(--space-3);">
+          <div class="lf-thumb {{ 'lost' if match.kind.value == 'lost' else 'found' }}"
+               {% if match.photo_url %}style="background-image:url('{{ match.photo_url }}')"{% endif %}></div>
+          <div><div class="fw-600">{{ match.pet_name or match.species or 'Pet' }}</div>
+            <div class="text-sm text-muted">{{ match.kind.label }} · {{ match.location or '' }}</div></div>
+        </div>
+        <span class="match-score">{{ score }}%</span>
+      </a>
+    {% else %}
+      <p class="text-muted mb-0">No photo matches yet. Check back soon.</p>
+    {% endfor %}
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends 'layouts/adopter.html' %}
+{% block title %}{{ pet.name }} - Lab Reports · {{ APP_NAME }}{% endblock %}
+{% block page_head %}{% endblock %}
+{% block content %}
+<div class="lab-page">
+  <div class="lab-page-header card mb-4">
+    <div>
+      <p class="eyebrow">Shared by veterinarian</p>
+      <h1 class="mb-0">{{ pet.name }}'s Lab Reports</h1>
+      <p class="text-sm text-muted mb-0">{{ pet.public_pet_id }}</p>
+    </div>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('adopter.pet_health', pet_id=pet.id) }}">← Health Record</a>
+  </div>
+
+  <section class="card lab-report-list-card">
+    <div class="lab-list-head"><h2>Lab reports</h2><span>{{ reports | length }}</span></div>
+    {% for report in reports %}
+      <article class="lab-report-row">
+        <div>
+          <strong>{{ report.title }}</strong>
+          <div class="text-xs text-muted">{{ report.record_date.strftime('%d %b %Y') }}</div>
+        </div>
+        <a class="btn btn-outline btn-sm" href="{{ url_for('adopter.pet_lab_reports', pet_id=pet.id, record=report.id) }}">View</a>
+      </article>
+      {% if selected and selected.id == report.id %}
+        <div class="lab-inline-viewer">
+          {% set attachments = report.attachments or [] %}
+          {% set ns = namespace(image=None) %}
+          {% for attachment in attachments %}
+            {% if attachment is string and (attachment.lower().endswith('.jpg') or attachment.lower().endswith('.jpeg') or attachment.lower().endswith('.png') or attachment.lower().endswith('.webp')) %}
+              {% set ns.image = attachment %}
+            {% endif %}
+          {% endfor %}
+          {% if ns.image %}
+            <img src="{{ ns.image }}" alt="{{ report.title }}">
+          {% elif attachments %}
+            {% for attachment in attachments %}
+              {% if attachment is string %}
+                {% if attachment.lower().endswith('.pdf') %}
+                  <iframe class="lab-inline-pdf" src="{{ attachment }}" title="{{ report.title }}"></iframe>
+                {% else %}
+                  <a class="btn btn-outline" href="{{ attachment }}" target="_blank" rel="noopener">{{ report.title }} attachment</a>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          {% else %}
+            <div class="lab-preview-placeholder">{{ report.title }}</div>
+            <a class="btn btn-outline btn-sm mt-3" href="{{ url_for('health.record_pdf', record_id=report.id) }}">View PDF</a>
+          {% endif %}
+        </div>
+      {% endif %}
+    {% else %}
+      <p class="text-muted mb-0">No lab reports have been shared.</p>
+    {% endfor %}
+  </section>
+</div>
+
+<style>
+.lab-page-header { display:flex; align-items:center; justify-content:space-between; gap:var(--space-4); padding:var(--space-5); }
+.eyebrow { margin:0 0 var(--space-1); color:var(--color-primary); font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
+.lab-viewer { overflow:hidden; }
+.lab-viewer-head { display:flex; align-items:center; justify-content:space-between; gap:var(--space-4); padding:var(--space-4) var(--space-5); border-bottom:1px solid var(--color-border); }
+.lab-viewer-head h2 { font-size:1.05rem; }
+.lab-preview { min-height:280px; display:flex; align-items:center; justify-content:center; padding:var(--space-5); background:var(--color-surface-muted); }
+.lab-preview img { max-width:100%; max-height:520px; border-radius:var(--radius-md); border:1px solid var(--color-border); }
+.lab-preview-placeholder { min-width:min(520px, 80%); min-height:220px; display:flex; align-items:center; justify-content:center; border:1px solid var(--color-border); border-radius:var(--radius-md); background:white; color:var(--color-text-muted); font-family:cursive; font-size:1.3rem; }
+.lab-report-list-card { padding:var(--space-5); }
+.lab-list-head { display:flex; align-items:center; justify-content:space-between; padding-bottom:var(--space-3); border-bottom:1px solid var(--color-border); }
+.lab-list-head h2 { margin:0; }
+.lab-list-head span { min-width:30px; height:30px; display:flex; align-items:center; justify-content:center; border-radius:999px; background:var(--color-surface-muted); font-weight:700; }
+.lab-report-row { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); padding:var(--space-3) 0; border-bottom:1px solid var(--color-border); }
+.lab-report-row:last-child { border-bottom:0; }
+.lab-inline-viewer { min-height:240px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--space-2); margin-bottom:var(--space-2); padding:var(--space-4); border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-surface-muted); }
+.lab-inline-viewer img { max-width:100%; max-height:520px; border-radius:var(--radius-md); border:1px solid var(--color-border); }
+.lab-inline-pdf { width:min(100%, 800px); height:520px; border:1px solid var(--color-border); border-radius:var(--radius-md); }
+@media(max-width:640px) {
+  .lab-page-header, .lab-viewer-head { align-items:flex-start; flex-direction:column; }
+  .lab-preview-placeholder { min-width:100%; }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import field %}
+{% block title %}Edit profile · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Edit profile{% endblock %}
+{% block page_subtitle %}{% endblock %}
+{% block content %}
+<form method="post" enctype="multipart/form-data" class="grid" style="grid-template-columns: 280px 1fr; gap: var(--space-5);">
+  {{ form.hidden_tag() }}
+
+  <div class="card text-center">
+    {% if user.avatar_url %}
+      <img class="avatar avatar-lg" style="margin: 0 auto;" src="{{ user.avatar_url }}" alt="avatar">
+    {% else %}
+      <div class="avatar avatar-lg profile-initials" style="margin: 0 auto;">{{ user.initials }}</div>
+    {% endif %}
+    <div class="field mt-4">
+      <label class="btn btn-outline" style="cursor:pointer;">
+        Change photo
+        {{ form.avatar(style='display:none') }}
+      </label>
+      <div class="field-hint">JPG or PNG, up to 16 MB</div>
+      {% for e in form.avatar.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="grid grid-2">
+      {{ field(form.first_name) }}
+      {{ field(form.phone) }}
+    </div>
+    {{ field(form.last_name) }}
+    {{ field(form.address) }}
+    {{ field(form.city) }}
+    {{ field(form.bio, type_class='textarea') }}
+
+    <div class="field">
+      <label>Home &amp; lifestyle</label>
+      <div class="row row-wrap">
+        {% for t in all_tags %}
+          <label class="pill {{ 'is-active' if user.has_tag(t) }}">
+            <input type="checkbox" name="lifestyle_tags" value="{{ t }}"
+                   class="lifestyle-tag-input" {{ 'checked' if user.has_tag(t) }}>
+            {{ t }}
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="row spread mt-4">
+      <a class="btn btn-ghost" href="{{ url_for('profile.view') }}">Cancel</a>
+      <button type="submit" class="btn btn-primary">Save changes</button>
+    </div>
+  </div>
+</form>
+<style>
+.lifestyle-tag-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.pill:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+</style>
+<script>
+  document.querySelectorAll('.lifestyle-tag-input').forEach(function (input) {
+    input.addEventListener('change', function () {
+      input.closest('.pill').classList.toggle('is-active', input.checked);
+    });
+  });
+</script>
+{% endblock %}

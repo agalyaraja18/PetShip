@@ -1,0 +1,15 @@
+/* Admin console (Phase 8) */
+.grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-4); }
+.list-cover { display: block; width: 100%; aspect-ratio: 16/10; object-fit: cover; border-radius: var(--radius-md); font-size: 1.6rem; }
+
+/* Adoption kanban */
+.kanban { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-3); align-items: start; overflow-x: auto; }
+.kanban-col { background: var(--color-surface-muted); border-radius: var(--radius-md); padding: var(--space-3); min-width: 180px; }
+.kanban-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3); }
+.kanban-card { background: var(--color-surface); border-radius: var(--radius-sm); padding: var(--space-3); box-shadow: var(--shadow-sm); }
+.kanban-card.over-sla { border: 1.5px solid var(--color-danger); }
+
+@media (max-width: 1100px) {
+  .grid-5 { grid-template-columns: repeat(2, 1fr); }
+  .kanban { grid-template-columns: repeat(2, 1fr); }
+}

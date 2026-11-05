@@ -1,0 +1,84 @@
+{% extends 'layouts/adopter.html' %}
+{% block title %}Pet expense calculator · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lifestyle.css') }}">
+{% endblock %}
+{% block page_title %}Pet expense calculator{% endblock %}
+{% block page_subtitle %}See what your pet costs each month and year.{% endblock %}
+{% block content %}
+<div class="expense-layout">
+  <div class="card">
+    <table class="data-table">
+      <thead><tr><th>Item</th><th>Amount</th><th>Frequency</th><th></th></tr></thead>
+      <tbody>
+        {% for item in items %}
+          <tr>
+            <td class="fw-600">{{ item.label }}</td>
+            <td>₹{{ item.amount|int }}</td>
+            <td>{{ item.frequency.label }}</td>
+            <td>
+              <form method="post" action="{{ url_for('lifestyle.delete_expense', item_id=item.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-ghost btn-sm" type="submit" aria-label="Remove">✕</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4"><p class="text-muted mb-0">No expenses yet — add one below.</p></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <form method="post" action="{{ url_for('lifestyle.add_expense') }}" class="expense-add mt-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="label" placeholder="e.g. Food" required>
+      <select class="select" name="category">
+        {% for key, label in categories.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+      </select>
+      <input class="input" name="amount" type="number" step="1" placeholder="₹" required style="max-width:120px;">
+      <select class="select" name="frequency" style="max-width:140px;">
+        <option value="monthly">Monthly</option>
+        <option value="yearly">Yearly</option>
+      </select>
+      <button class="btn btn-primary" type="submit">+ Add</button>
+    </form>
+  </div>
+
+  <aside class="stack">
+    <div class="card expense-total-card">
+      <div class="text-sm">Estimated monthly cost</div>
+      <div class="expense-big">₹{{ '{:,}'.format(monthly) }}</div>
+      <div class="row spread mt-4">
+        <span class="text-sm">Yearly estimate</span>
+        <strong>₹{{ '{:,}'.format(yearly) }}</strong>
+      </div>
+    </div>
+    <div class="card">
+      <canvas id="expenseChart" height="200"></canvas>
+      <div class="stack mt-4">
+        {% for b in breakdown %}
+          <div class="row spread text-sm">
+            <span><span class="legend-dot" style="background: {{ b.colour }};"></span> {{ b.label }}</span>
+            <strong>{{ b.percent }}%</strong>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script src="{{ url_for('static', filename='js/vendor/chart.min.js') }}"></script>
+<script>
+  const data = {{ breakdown|tojson }};
+  if (data.length) {
+    new Chart(document.getElementById('expenseChart'), {
+      type: 'doughnut',
+      data: {
+        labels: data.map(d => d.label),
+        datasets: [{ data: data.map(d => d.amount), backgroundColor: data.map(d => d.colour), borderWidth: 0 }]
+      },
+      options: { cutout: '65%', plugins: { legend: { display: false } } }
+    });
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'layouts/admin.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}User management · {{ APP_NAME }}{% endblock %}
+{% block page_head %}
+  <div class="row spread">
+    <div><h1 class="mb-0">User management</h1><p class="text-muted mb-0">{{ users|length }} users</p></div>
+    <a class="btn btn-outline" href="{{ url_for('admin.users_csv') }}">Export CSV</a>
+  </div>
+{% endblock %}
+{% block content %}
+<form class="row row-wrap mb-4" method="get">
+  <input class="input" name="q" value="{{ q }}" placeholder="Search by name or email" style="max-width:280px;">
+  <a class="pill {{ 'is-active' if active_role == 'all' }}" href="{{ url_for('admin.users') }}">All roles</a>
+  {% for r in roles %}
+    <a class="pill {{ 'is-active' if active_role == r.value }}" href="{{ url_for('admin.users', role=r.value) }}">{{ r.label }}s</a>
+  {% endfor %}
+  <button class="btn btn-primary btn-sm" type="submit">Search</button>
+</form>
+
+<div class="card">
+  <table class="data-table">
+    <thead><tr><th>User</th><th>Role</th><th>Joined</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for u in users %}
+        <tr>
+          <td><div class="fw-600">{{ u.full_name }}</div><div class="text-sm text-muted">{{ u.email }}</div></td>
+          <td>{{ badge(u.role.label, 'neutral') }}</td>
+          <td>{{ u.created_at.strftime('%d %b %Y') }}</td>
+          <td>{% if u.is_active %}{{ badge('Active', 'success') }}{% else %}{{ badge('Suspended', 'danger') }}{% endif %}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin.toggle_suspend', user_id=u.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline btn-sm" type="submit">{{ 'Restore' if not u.is_active else 'Suspend' }}</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

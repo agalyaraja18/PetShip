@@ -1,0 +1,31 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag %}
+{% block title %}About · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/content.css') }}">
+{% endblock %}
+{% block content %}
+<div class="about-hero">
+  <div>
+    {{ tag('Our mission') }}
+    <h1 class="mt-4">Beyond Fur &amp; Feather; <span class="text-primary">It's a Family</span></h1>
+    <p class="text-muted text-lg">PetShip connects animals with loving families and supports them long after adoption day, with verified shelters, trusted vets, and tools for lifelong care.</p>
+  </div>
+  <div class="about-hero-art">
+    <img src="{{ url_for('static', filename='img/pets/blog_adoption.jpg') }}" alt="Two dogs enjoying time together">
+  </div>
+</div>
+
+<div class="about-stats">
+  <div class="about-stat"><div class="stat-value">{{ '{:,}'.format(stats.pets_adopted) }}</div><div>Pets adopted</div></div>
+  <div class="about-stat"><div class="stat-value">{{ stats.verified_shelters }}</div><div>Verified shelters</div></div>
+  <div class="about-stat"><div class="stat-value">{{ stats.partner_vets }}</div><div>Partner vets</div></div>
+  <div class="about-stat"><div class="stat-value">{{ '{:,}'.format(stats.pet_parents) }}</div><div>Pet parents</div></div>
+</div>
+
+<div class="about-principles grid grid-3">
+  <div class="card"><h3>Compassion first</h3><p class="text-muted mb-0">Every decision starts with the wellbeing of the animal.</p></div>
+  <div class="card"><h3>Responsible adoption</h3><p class="text-muted mb-0">Smart matching and follow-ups mean fewer returns and happier homes.</p></div>
+  <div class="card"><h3>Lifelong care</h3><p class="text-muted mb-0">Health records, vets, and reminders in one place.</p></div>
+</div>
+{% endblock %}

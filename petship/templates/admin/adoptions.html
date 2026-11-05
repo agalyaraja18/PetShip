@@ -1,0 +1,27 @@
+{% extends 'layouts/admin.html' %}
+{% block title %}Adoption management · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Adoption management{% endblock %}
+{% block page_subtitle %}All platform adoptions by stage · red border means over SLA{% endblock %}
+{% block content %}
+<div class="kanban">
+  {% for stage in stages %}
+    <div class="kanban-col">
+      <div class="kanban-head">
+        <span class="fw-600">{{ stage.label }}</span>
+        <span class="badge badge-neutral">{{ board[stage]|length }}</span>
+      </div>
+      <div class="stack">
+        {% for card in board[stage] %}
+          <div class="kanban-card {{ 'over-sla' if card.over_sla }}">
+            <div class="fw-600">{{ card.app.pet.name }}</div>
+            <div class="text-sm text-muted">{{ card.app.applicant.full_name }}</div>
+            <div class="text-sm text-muted">{{ card.app.pet.shelter.name }} · {{ card.app.created_at.strftime('%d %b') }}</div>
+          </div>
+        {% else %}
+          <p class="text-sm text-muted">—</p>
+        {% endfor %}
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

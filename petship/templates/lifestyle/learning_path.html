@@ -1,0 +1,60 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import progress, badge %}
+{% block title %}{{ path.title }} · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lifestyle.css') }}">
+{% endblock %}
+{% block page_title %}{{ path.title }}{% endblock %}
+{% block page_subtitle %}{{ path.level }} · {{ unique_lessons|length }} lessons · {{ path.duration_min }} min{% endblock %}
+{% block content %}
+<div class="learning-detail-layout">
+  <div class="stack">
+    {% for lesson in unique_lessons %}
+      {% set is_done = lesson.id in done_ids %}
+      <div class="card lesson-card {{ 'is-done' if is_done }}">
+        <div class="row spread">
+          <div class="row" style="gap: var(--space-3);">
+            <div class="lesson-num {{ 'is-done' if is_done }}">{{ '✓' if is_done else loop.index }}</div>
+            <div>
+              <div class="fw-600">{{ lesson.title }}</div>
+              {% if lesson.body %}
+                <div class="text-sm text-muted mt-1">{{ lesson.body[:100] }}{% if lesson.body|length > 100 %}…{% endif %}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="row" style="gap: var(--space-2);">
+            {# Always allow reading the lesson content #}
+            <a class="btn btn-ghost btn-sm" href="{{ url_for('learning.lesson_view', lesson_id=lesson.id) }}">
+              📖 Read
+            </a>
+            {% if not is_done %}
+              <form method="post" action="{{ url_for('learning.complete_lesson', lesson_id=lesson.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline btn-sm" type="submit">Mark done</button>
+              </form>
+            {% else %}
+              {{ badge('Done', 'success') }}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <aside class="card">
+    <h3>Your progress</h3>
+    <div class="big-stat">{{ pct }}%</div>
+    {{ progress(pct) }}
+    {% if completed %}
+      <div class="card card-muted mt-4 text-center">
+        <div style="font-size: 2rem;">🎓</div>
+        <div class="fw-600">Certificate earned</div>
+        <p class="text-sm text-muted mb-0">You completed {{ path.title }}.</p>
+      </div>
+    {% else %}
+      <p class="text-sm text-muted mt-4">Complete all lessons to earn your certificate.</p>
+    {% endif %}
+    <a class="btn btn-ghost btn-sm mt-4" href="{{ url_for('learning.paths') }}">← All paths</a>
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'layouts/vet.html' %}
+{% block title %}Notifications · {{ APP_NAME }}{% endblock %}
+{% block page_head %}
+  <div class="row spread">
+    <h1 class="mb-0">Notifications</h1>
+    <form method="post" action="{{ url_for('vet_workspace.read_all_notifications') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-ghost btn-sm" type="submit">Mark all as read</button>
+    </form>
+  </div>
+{% endblock %}
+{% block content %}
+<div class="row row-wrap mb-4">
+  {% for key, label in category_options %}
+    <a class="pill {{ 'is-active' if category == key }}"
+       href="{{ url_for('vet_workspace.notifications', category=key) }}">{{ label }}</a>
+  {% endfor %}
+</div>
+<div class="stack">
+  {% for key, label, group in notification_groups %}
+    <section class="stack">
+      <h2 class="h3">{{ label }}</h2>
+      {% for notification in group %}
+        <article class="card notif-item {{ 'is-unread' if not notification.read }}">
+          <div class="row spread">
+            <div>
+              <div class="fw-600">{% if notification.link %}<a href="{{ notification.link }}">{{ notification.title }}</a>{% else %}{{ notification.title }}{% endif %}</div>
+              {% if notification.body %}<div class="text-sm text-muted">{{ notification.body }}</div>{% endif %}
+            </div>
+            <div class="text-sm text-muted">{{ notification.created_at.strftime('%d %b, %H:%M') }}</div>
+          </div>
+        </article>
+      {% endfor %}
+    </section>
+  {% else %}
+    <div class="card"><p class="text-muted mb-0">No notifications in this view.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

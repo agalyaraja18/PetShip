@@ -1,0 +1,46 @@
+{% extends 'layouts/root.html' %}
+{#  Shared skeleton for the sidebar shells. Variants set:
+    - shell_class : 'shell-light' or 'shell-dark'
+    - the 'sidenav' block : the navigation links
+    - optional 'sidebar_sub' : small text under the brand (clinic/shelter name)
+#}
+{% set shell_class = shell_class | default('shell-light') %}
+
+{% block body_class %}{{ shell_class }}{% endblock %}
+
+{% block body %}
+<div class="app-shell">
+  <aside class="sidebar" aria-label="Section navigation">
+    <div>
+      <a class="brand" href="{{ url_for('pets.home') }}">{{ APP_NAME }}</a>
+      {% block sidebar_sub %}{% endblock %}
+    </div>
+    <nav>
+      <ul class="sidenav">
+        {% block sidenav %}{% endblock %}
+      </ul>
+    </nav>
+    {% if current_user.is_authenticated %}
+      <div class="sidebar-foot">
+        <div class="sidebar-user">
+          <div class="avatar avatar-sm profile-initials">{{ current_user.initials }}</div>
+          <div class="sidebar-user-name">{{ current_user.full_name }}</div>
+        </div>
+        <a class="sidebar-logout" href="{{ url_for('auth.logout') }}">Log out</a>
+      </div>
+    {% endif %}
+  </aside>
+
+  <main class="app-main" id="main-content">
+    <div class="page-head">
+      {% block page_head %}
+        <h1>{% block page_title %}{% endblock %}</h1>
+        <p class="text-muted mb-0">{% block page_subtitle %}{% endblock %}</p>
+      {% endblock %}
+    </div>
+
+    {% include 'partials/flashes.html' %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% endblock %}

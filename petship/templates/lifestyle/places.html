@@ -1,0 +1,69 @@
+{% extends 'layouts/adopter.html' %}
+{% block title %}Pet-friendly places · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leaflet.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lifestyle.css') }}">
+{% endblock %}
+{% block page_head %}
+  <div class="row spread">
+    <div><h1 class="mb-0">Pet-friendly places</h1><p class="text-muted mb-0">Parks, cafés, vets, and grooming near you.</p></div>
+    <a class="btn btn-danger" href="{{ url_for('learning.emergency') }}">Emergency vet</a>
+  </div>
+{% endblock %}
+{% block content %}
+<div class="places-layout" x-data="placesMap()">
+  <div class="places-sidebar">
+    <div class="row row-wrap mb-4">
+      <button class="pill is-active" data-cat="all" @click="setFilter('all', $event)">All</button>
+      {% for c in categories %}
+        <button class="pill" data-cat="{{ c.value }}" @click="setFilter('{{ c.value }}', $event)">{{ c.label }}</button>
+      {% endfor %}
+    </div>
+    <div class="stack" id="place-list"></div>
+  </div>
+  <div id="places-map" class="places-map"></div>
+</div>
+
+<script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>
+<script>
+  function placesMap() {
+    return {
+      map: null, layer: null, filter: 'all',
+      init() {
+        this.map = L.map('places-map').setView([13.0067, 80.2570], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19, attribution: '© OpenStreetMap'
+        }).addTo(this.map);
+        this.layer = L.layerGroup().addTo(this.map);
+        this.load();
+      },
+      setFilter(cat, e) {
+        this.filter = cat;
+        document.querySelectorAll('.places-sidebar .pill').forEach(p => p.classList.remove('is-active'));
+        e.target.classList.add('is-active');
+        this.load();
+      },
+      async load() {
+        const res = await fetch(`{{ url_for('lifestyle.places_json') }}?category=${this.filter}`);
+        const places = await res.json();
+        this.layer.clearLayers();
+        const list = document.getElementById('place-list');
+        list.innerHTML = '';
+        places.forEach(p => {
+          L.circleMarker([p.lat, p.lng], {
+            radius: 9, color: '#fff', weight: 2, fillColor: '#a85d43', fillOpacity: 1
+          }).addTo(this.layer).bindPopup(`<strong>${p.name}</strong><br>${p.note || ''}`);
+          const card = document.createElement('div');
+          card.className = 'card place-card';
+          card.innerHTML = `<div class="fw-600">${p.name}</div>
+            <div class="text-sm text-muted">${p.category_label} · ${p.distance_km || '?'} km${p.rating ? ' · ★ ' + p.rating : ''}</div>
+            ${p.note ? '<div class="text-sm">' + p.note + '</div>' : ''}`;
+          card.addEventListener('click', () => this.map.setView([p.lat, p.lng], 15));
+          list.appendChild(card);
+        });
+        if (!places.length) list.innerHTML = '<p class="text-muted">No places in this category.</p>';
+      }
+    };
+  }
+</script>
+{% endblock %}

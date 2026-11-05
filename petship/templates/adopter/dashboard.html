@@ -1,0 +1,66 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import stat_card, badge %}
+{% block title %}Dashboard · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Good day, {{ user.first_name or 'friend' }}{% endblock %}
+{% block page_subtitle %}Here's what's happening with your pets today.{% endblock %}
+{% block content %}
+<div class="grid grid-4 mb-5">
+  {{ stat_card('My pets', stats.pets) }}
+  {{ stat_card('Applications', stats.applications) }}
+  {{ stat_card('Upcoming visits', stats.visits) }}
+  {{ stat_card('Monthly spend', stats.spend) }}
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>Active application</h3>
+    {% if active_app %}
+      <div class="fw-600">{{ active_app.pet.name }}</div>
+      <p class="text-sm text-muted">{{ active_app.reference }} · {{ active_app.pet.shelter.name }}</p>
+      <ol class="mini-timeline">
+        {% set ci = active_app.current_index %}
+        {% for stage in ['Application submitted','Application review','Application confirmed','Home visit','Adoption agreement','Welcome home'] %}
+          <li class="{{ 'is-done' if loop.index0 < ci }} {{ 'is-current' if loop.index0 == ci }}">{{ stage }}</li>
+        {% endfor %}
+      </ol>
+      <div class="row row-wrap">
+        <a class="btn btn-outline btn-sm" href="{{ url_for('adoption.track', app_id=active_app.id) }}">View status</a>
+        {% if active_app.stage.value == 'home_visit' %}
+          <a class="btn btn-outline btn-sm"
+             href="{{ url_for('adoption.track', app_id=active_app.id, _anchor='reschedule-visit') }}">Reschedule visit</a>
+        {% endif %}
+      </div>
+    {% else %}
+      <p class="text-muted">No active applications. <a href="{{ url_for('pets.browse') }}">Browse pets →</a></p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>My pets</h3>
+    {% for pet in pets %}
+      <a class="row spread toggle-row appointment-row" href="{{ url_for('health.dashboard', pet_id=pet.id) }}">
+        <div class="row" style="gap: var(--space-3);">
+          <div class="avatar avatar-md profile-initials">{{ pet.name[0] }}</div>
+          <div><div class="fw-600">{{ pet.name }}</div><div class="text-sm text-muted">{{ pet.species }} · Healthy</div></div>
+        </div>
+        <span class="text-sm text-primary">Health →</span>
+      </a>
+    {% else %}
+      <p class="text-muted mb-0">No pets yet.</p>
+    {% endfor %}
+
+    <div class="row spread mt-5 mb-3">
+      <h3 class="mb-0">Upcoming visits</h3>
+      <a class="text-sm text-primary" href="{{ url_for('adopter.appointments') }}">View appointments</a>
+    </div>
+    {% for a in upcoming %}
+      <div class="row spread toggle-row">
+        <div><div class="fw-600">{{ a.service or a.kind.label }}</div><div class="text-sm text-muted">{{ a.note or '' }}</div></div>
+        <span class="text-sm">{{ a.scheduled_for.strftime('%d %b, %H:%M') }}</span>
+      </div>
+    {% else %}
+      <p class="text-muted mb-0">No upcoming visits.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

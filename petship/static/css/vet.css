@@ -1,0 +1,34 @@
+/* Vet directory, detail, profile management (Task 18) */
+.vet-search { display: flex; gap: var(--space-3); }
+.vet-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); }
+.vet-card h3 a { text-decoration: none; }
+.vet-detail-layout { display: grid; grid-template-columns: 1fr 320px; gap: var(--space-5); align-items: start; }
+.vet-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+.vet-manage-grid { display: grid; grid-template-columns: 280px 1fr; gap: var(--space-5); align-items: start; }
+@media (max-width: 960px) {
+  .vet-grid { grid-template-columns: 1fr; }
+  .vet-detail-layout, .vet-manage-grid { grid-template-columns: 1fr; }
+}
+
+/* Booking (Task 19) */
+.booking-layout { display: grid; grid-template-columns: 1fr 340px; gap: var(--space-5); align-items: start; }
+.booking-summary { position: sticky; top: var(--space-5); }
+.summary-rows > div { padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border); }
+.summary-total { border-bottom: none !important; font-family: var(--font-heading); font-size: 1.2rem; padding-top: var(--space-3) !important; }
+.date-pill { flex-direction: column; min-width: 56px; text-align: center; padding: 0.5rem; }
+.date-dow { display: block; font-size: 0.7rem; }
+.date-num { display: block; font-weight: 600; font-family: var(--font-heading); }
+
+.booking-confirm { max-width: 560px; margin: 0 auto; text-align: center; }
+.confirm-check { width: 56px; height: 56px; border-radius: 50%; background: var(--terracotta); color: #fff; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; margin: 0 auto var(--space-4); }
+.confirm-summary { text-align: left; margin: var(--space-5) 0; }
+.confirm-summary .grid-2 > div { padding: var(--space-2) 0; }
+
+@media (max-width: 860px) { .booking-layout { grid-template-columns: 1fr; } }
+
+/* Vet workspace (Task 20) */
+.appt-time { font-family: var(--font-heading); font-weight: 600; min-width: 52px; color: var(--color-primary); }
+.appointment-row { text-decoration: none; color: inherit; }
+.appointment-row:hover { text-decoration: none; background: var(--color-surface-muted); border-radius: var(--radius-md); }
+.needs-item { padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); }
+.needs-item:last-child { border-bottom: none; }

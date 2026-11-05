@@ -1,0 +1,115 @@
+{% extends 'layouts/shelter.html' %}
+{% block title %}{{ 'Edit pet' if pet else 'Add a new pet' }} · {{ APP_NAME }}{% endblock %}
+{% block page_head %}
+  <div class="row spread">
+    <h1 class="mb-0">{{ 'Edit ' ~ pet.name if pet else 'Add a new pet' }}</h1>
+    <button form="pet-form" class="btn btn-primary" name="action" value="publish" type="submit">Publish listing</button>
+  </div>
+{% endblock %}
+{% block content %}
+<form id="pet-form" method="post" enctype="multipart/form-data" class="pet-form-grid">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="card">
+    <h3>Photos</h3>
+    <label class="upload-drop">
+      <span class="text-primary fw-600">+ Upload photos</span>
+      <span class="text-sm text-muted">Up to 8, bright clear shots work best</span>
+      <input type="file" name="photos" accept="image/*" multiple hidden>
+    </label>
+    {% if pet and pet.photos %}
+      <div class="detail-thumbs mt-4">
+        {% for p in pet.photos[:4] %}<img class="detail-thumb" src="{{ p }}" alt="photo">{% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="grid grid-3">
+      <div class="field"><label>Name</label><input class="input" name="name" value="{{ pet.name if pet else '' }}"></div>
+      <div class="field"><label>Species</label>
+        <select class="select" name="species">
+          {% for s in options.species %}<option value="{{ s.value }}" {{ 'selected' if pet and pet.species == s }}>{{ s.label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>Breed</label><input class="input" name="breed" value="{{ pet.breed if pet else '' }}"></div>
+    </div>
+    <div class="grid grid-4">
+      <div class="field"><label>Age group</label>
+        <select class="select" name="age_group">
+          {% for a in options.ages %}<option value="{{ a.value }}" {{ 'selected' if pet and pet.age_group == a }}>{{ a.label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>Age text</label><input class="input" name="age_text" placeholder="2 yrs" value="{{ pet.age_text if pet else '' }}"></div>
+      <div class="field"><label>Gender</label>
+        <select class="select" name="sex">
+          {% for s in options.sexes %}<option value="{{ s.value }}" {{ 'selected' if pet and pet.sex == s }}>{{ s.label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>Size</label>
+        <select class="select" name="size">
+          {% for s in options.sizes %}<option value="{{ s.value }}" {{ 'selected' if pet and pet.size == s }}>{{ s.label }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="field"><label>Health</label>
+      <div class="row row-wrap">
+        {% for t in options.health %}
+          <label class="pill {{ 'is-active' if pet and t in (pet.health_tags or []) }}">
+            <input type="checkbox" name="health_tags" value="{{ t }}" hidden {{ 'checked' if pet and t in (pet.health_tags or []) }}>{{ t }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="field"><label>Personality</label>
+      <div class="row row-wrap">
+        {% for t in options.personality %}
+          <label class="pill {{ 'is-active' if pet and t in (pet.personality_tags or []) }}">
+            <input type="checkbox" name="personality_tags" value="{{ t }}" hidden {{ 'checked' if pet and t in (pet.personality_tags or []) }}>{{ t }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="field"><label>Good with</label>
+      <div class="row row-wrap">
+        {% for t in options.good_with %}
+          <label class="pill {{ 'is-active' if pet and t in (pet.good_with or []) }}">
+            <input type="checkbox" name="good_with" value="{{ t }}" hidden {{ 'checked' if pet and t in (pet.good_with or []) }}>{{ t|capitalize }}</label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="field"><label>Description</label>
+      <textarea class="textarea" name="description">{{ pet.description if pet else '' }}</textarea>
+    </div>
+
+    <div class="card card-muted">
+      <p class="text-sm mb-0"><span class="text-primary fw-600">AI tip:</span> listings that mention daily routine and ideal home get 40% more applications.</p>
+    </div>
+
+    <div class="grid grid-2 mt-4">
+      <div class="field"><label>Adoption fee (₹)</label><input class="input" name="adoption_fee" type="number" value="{{ pet.adoption_fee|int if pet and pet.adoption_fee else '' }}"></div>
+    </div>
+
+    <div class="row spread">
+      <button class="btn btn-ghost" name="action" value="draft" type="submit">Save draft</button>
+      <button class="btn btn-primary" name="action" value="publish" type="submit">Publish listing</button>
+    </div>
+  </div>
+</form>
+
+<script>
+  document.querySelectorAll('.pet-form-grid .pill').forEach(function (label) {
+    label.addEventListener('click', function () {
+      var input = label.querySelector('input');
+      setTimeout(function () { label.classList.toggle('is-active', input.checked); }, 0);
+    });
+  });
+  // Show chosen file count on the drop label.
+  document.querySelector('input[name="photos"]').addEventListener('change', function (e) {
+    if (e.target.files.length) {
+      e.target.closest('.upload-drop').querySelector('.text-sm').textContent =
+        e.target.files.length + ' photo(s) selected';
+    }
+  });
+</script>
+{% endblock %}

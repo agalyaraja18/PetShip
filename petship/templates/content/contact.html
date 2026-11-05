@@ -1,0 +1,45 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import field %}
+{% block title %}Contact · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/content.css') }}">
+{% endblock %}
+{% block content %}
+<div class="contact-layout">
+  <div>
+    <h1>We're here to help</h1>
+    <p class="text-muted">Questions about adopting, partnering as a shelter, or joining as a vet? Our team replies within one working day.</p>
+    <div class="stack mt-5">
+      <div class="card row" style="gap: var(--space-4);">
+        <div class="contact-icon">✉️</div>
+        <div><div class="fw-600">Email</div><div class="text-muted text-sm">hello@petship.com</div></div>
+      </div>
+      <div class="card row" style="gap: var(--space-4);">
+        <div class="contact-icon">📞</div>
+        <div><div class="fw-600">Phone</div><div class="text-muted text-sm">+91 44 4000 1234 · Mon to Sat, 9 to 6</div></div>
+      </div>
+      <div class="card row" style="gap: var(--space-4);">
+        <div class="contact-icon">📍</div>
+        <div><div class="fw-600">Office</div><div class="text-muted text-sm">Anna Salai, Chennai 600002</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Send us a message</h3>
+    <form method="post">
+      {{ form.hidden_tag() }}
+      <div class="grid grid-2">
+        {{ field(form.name) }}
+        {{ field(form.email) }}
+      </div>
+      <div class="field">
+        {{ form.topic.label }}
+        {{ form.topic(class='select') }}
+      </div>
+      {{ field(form.message, type_class='textarea') }}
+      <button class="btn btn-primary" type="submit">Send message</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

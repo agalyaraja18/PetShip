@@ -1,0 +1,127 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import badge, tag, pill, stat_card, progress %}
+{% block title %}Styleguide · {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<h1>PetShip Styleguide</h1>
+<p class="text-muted">The brand design system: colours, type, and components used across all 89 pages.</p>
+
+<section class="mt-5">
+  <h2>Colour palette</h2>
+  <div class="grid grid-4">
+    {% set swatches = [
+      ('Terracotta', '#A85D43', '--terracotta', '#fff'),
+      ('Warm Peach', '#D99B7C', '--warm-peach', '#46352f'),
+      ('Soft Ivory', '#FAF0E6', '--soft-ivory', '#46352f'),
+      ('Warm Beige', '#E6D8C7', '--warm-beige', '#46352f'),
+      ('Deep Espresso', '#46352F', '--deep-espresso', '#fff'),
+    ] %}
+    {% for name, hex, var, fg in swatches %}
+      <div class="card" style="background: var({{ var }}); color: {{ fg }};">
+        <div class="fw-600">{{ name }}</div>
+        <div class="text-sm">{{ hex }}</div>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="mt-5">
+  <h2>Typography</h2>
+  <div class="card stack">
+    <h1 class="mb-0">Heading one — Poppins SemiBold</h1>
+    <h2 class="mb-0">Heading two — Poppins SemiBold</h2>
+    <h3 class="mb-0">Heading three — Poppins SemiBold</h3>
+    <p class="mb-0">Body copy is Inter Regular. Meet adoptable pets from verified shelters,
+      find your best match with AI, and get support for a lifetime of care.</p>
+    <div class="row">
+      <button class="btn btn-primary">Button — Poppins Medium</button>
+    </div>
+  </div>
+</section>
+
+<section class="mt-5">
+  <h2>Buttons</h2>
+  <div class="card row row-wrap">
+    <button class="btn btn-primary">Primary</button>
+    <button class="btn btn-outline">Outline</button>
+    <button class="btn btn-ghost">Ghost</button>
+    <button class="btn btn-danger">Danger</button>
+    <button class="btn btn-primary btn-sm">Small</button>
+    <button class="btn btn-primary btn-lg">Large</button>
+  </div>
+</section>
+
+<section class="mt-5">
+  <h2>Badges, tags, pills</h2>
+  <div class="card stack">
+    <div class="row row-wrap">
+      {{ badge('Available', 'success') }}
+      {{ badge('Reserved', 'warning') }}
+      {{ badge('Suspended', 'danger') }}
+      {{ badge('In review', 'info') }}
+      {{ badge('Applied', 'primary') }}
+      {{ badge('Draft', 'neutral') }}
+    </div>
+    <div class="row row-wrap">
+      {{ tag('Kid friendly') }}{{ tag('Vaccinated') }}{{ tag('Calm') }}{{ tag('Neutered') }}
+    </div>
+    <div class="row row-wrap">
+      {{ pill('Dogs', true) }}{{ pill('Cats') }}{{ pill('Rabbits') }}{{ pill('Birds') }}
+    </div>
+  </div>
+</section>
+
+<section class="mt-5">
+  <h2>Stat cards & progress</h2>
+  <div class="grid grid-4 mb-4">
+    {{ stat_card('My pets', '2') }}
+    {{ stat_card('Applications', '1') }}
+    {{ stat_card('Upcoming visits', '3') }}
+    {{ stat_card('Monthly spend', '₹4,200') }}
+  </div>
+  <div class="card stack">
+    <div><div class="text-sm mb-0">Lifestyle fit</div>{{ progress(95) }}</div>
+    <div><div class="text-sm mb-0">Space fit</div>{{ progress(86) }}</div>
+  </div>
+</section>
+
+<section class="mt-5">
+  <h2>Form fields</h2>
+  <div class="card grid grid-2">
+    <div class="field">
+      <label for="sg-name">Full name</label>
+      <input class="input" id="sg-name" placeholder="Agalya R">
+    </div>
+    <div class="field">
+      <label for="sg-email">Email</label>
+      <input class="input" id="sg-email" placeholder="you@example.com">
+    </div>
+    <div class="field" style="grid-column: 1 / -1;">
+      <label for="sg-bio">Bio</label>
+      <textarea class="textarea" id="sg-bio" placeholder="Animal lover, works from home..."></textarea>
+    </div>
+  </div>
+</section>
+
+<section class="mt-5">
+  <h2>Flash messages</h2>
+  <div class="card">
+    <div class="flash flash-success">Your application for Bruno was submitted.</div>
+    <div class="flash flash-info">We sent a 6-digit code to your email.</div>
+    <div class="flash flash-warning">Mochi's rabies booster is due in 16 days.</div>
+    <div class="flash flash-danger">That area is reserved for a different account type.</div>
+  </div>
+</section>
+
+<section class="mt-5">
+  <h2>Role shells</h2>
+  <p class="text-muted">Each role has a dedicated shell. Preview them live:</p>
+  <div class="card row row-wrap">
+    <a class="btn btn-outline" href="{{ url_for('styleguide.shell_preview', shell='public') }}">Public top-nav</a>
+    <a class="btn btn-outline" href="{{ url_for('styleguide.shell_preview', shell='adopter') }}">Adopter sidebar</a>
+    <a class="btn btn-outline" href="{{ url_for('styleguide.shell_preview', shell='vet') }}">Vet sidebar</a>
+    <a class="btn btn-outline" href="{{ url_for('styleguide.shell_preview', shell='shelter') }}">Shelter dark sidebar</a>
+    <a class="btn btn-outline" href="{{ url_for('styleguide.shell_preview', shell='admin') }}">Admin dark sidebar</a>
+  </div>
+</section>
+{% endblock %}

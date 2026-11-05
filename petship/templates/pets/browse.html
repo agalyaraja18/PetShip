@@ -1,0 +1,109 @@
+{% extends 'layouts/public.html' %}
+{% block title %}Browse pets · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pets.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="browse-layout">
+  <aside>
+    <form id="filters" class="card browse-filters"
+          hx-get="{{ url_for('pets.browse') }}"
+          hx-target="#results"
+          hx-trigger="change, submit"
+          hx-push-url="true">
+      <h3>Filters</h3>
+
+      <div class="filter-group">
+        <div class="filter-label">Species</div>
+        <div class="row row-wrap">
+          {% for val, label in [('dog','Dogs'),('cat','Cats'),('rabbit','Rabbits'),('bird','Birds')] %}
+            <label class="pill {{ 'is-active' if val in selected.species }}">
+              <input type="checkbox" name="species" value="{{ val }}"
+                     {{ 'checked' if val in selected.species }} hidden>{{ label }}
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">Age</div>
+        <div class="row row-wrap">
+          {% for val, label in [('baby','Baby'),('young','Young'),('adult','Adult'),('senior','Senior')] %}
+            <label class="pill {{ 'is-active' if val in selected.age }}">
+              <input type="checkbox" name="age" value="{{ val }}"
+                     {{ 'checked' if val in selected.age }} hidden>{{ label }}
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">Size</div>
+        <div class="row row-wrap">
+          {% for val, label in [('small','Small'),('medium','Medium'),('large','Large')] %}
+            <label class="pill {{ 'is-active' if val in selected.size }}">
+              <input type="checkbox" name="size" value="{{ val }}"
+                     {{ 'checked' if val in selected.size }} hidden>{{ label }}
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">Distance</div>
+        <input type="range" name="distance" min="1" max="50" step="1"
+               value="{{ selected.distance or 25 }}" class="range"
+               oninput="this.nextElementSibling.textContent = 'Within ' + this.value + ' km'">
+        <div class="text-sm text-muted">Within {{ selected.distance or 25 }} km</div>
+      </div>
+
+      <div class="filter-group">
+        <div class="filter-label">Good with</div>
+        <div class="row row-wrap">
+          {% for val, label in [('kids','Kids'),('cats','Cats'),('dogs','Dogs')] %}
+            <label class="pill {{ 'is-active' if val in selected.good_with }}">
+              <input type="checkbox" name="good_with" value="{{ val }}"
+                     {{ 'checked' if val in selected.good_with }} hidden>{{ label }}
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block mt-4">Apply filters</button>
+    </form>
+  </aside>
+
+  <div>
+    <div class="row spread mb-4">
+      <div>
+        <h1 class="mb-0">Adoptable pets near you</h1>
+        <p class="text-muted mb-0"><span id="count">{{ count }}</span> pets waiting for a family</p>
+      </div>
+      <select class="select" style="max-width: 200px;" name="sort"
+              hx-get="{{ url_for('pets.browse') }}" hx-target="#results"
+              hx-include="#filters" hx-trigger="change">
+        <option value="newest" {{ 'selected' if selected.sort == 'newest' }}>Newest first</option>
+        <option value="nearest" {{ 'selected' if selected.sort == 'nearest' }}>Nearest</option>
+        <option value="popular" {{ 'selected' if selected.sort == 'popular' }}>Most popular</option>
+      </select>
+    </div>
+
+    <div id="results">
+      {% include 'pets/_results.html' %}
+    </div>
+  </div>
+</div>
+
+<script>
+  // Toggle the active styling on pill checkboxes so the UI reflects selection.
+  document.addEventListener('click', function (e) {
+    var label = e.target.closest('.browse-filters .pill');
+    if (label) {
+      var input = label.querySelector('input');
+      // Let the checkbox toggle, then sync the class on the next tick.
+      setTimeout(function () { label.classList.toggle('is-active', input.checked); }, 0);
+    }
+  });
+</script>
+{% endblock %}

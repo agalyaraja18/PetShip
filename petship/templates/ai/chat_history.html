@@ -1,0 +1,33 @@
+{% extends 'layouts/adopter.html' %}
+{% block title %}Pet care chat history · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ai.css') }}">
+{% endblock %}
+{% block page_head %}
+  <div class="row spread">
+    <div><h1 class="mb-0">Pet care chat history</h1>
+      <p class="text-muted mb-0">{{ conversations|length }} conversations with Pawly</p></div>
+    <a class="btn btn-primary" href="{{ url_for('ai.chat') }}">+ New chat</a>
+  </div>
+{% endblock %}
+{% block content %}
+<div class="stack">
+  {% for c in conversations %}
+    <a class="card row spread application-row" href="{{ url_for('ai.chat', conversation_id=c.id) }}">
+      <div class="row" style="gap: var(--space-3);">
+        <div class="pawly-avatar sm">🐾</div>
+        <div>
+          <div class="fw-600">{{ c.title }}</div>
+          <div class="text-sm text-muted">{{ c.preview }}</div>
+        </div>
+      </div>
+      <span class="text-sm text-muted">{{ c.created_at.strftime('%d %b') }}</span>
+    </a>
+  {% else %}
+    <div class="card text-center">
+      <p class="text-muted">No conversations yet. Ask Pawly your first question.</p>
+      <a class="btn btn-primary" href="{{ url_for('ai.chat') }}">Chat with Pawly</a>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

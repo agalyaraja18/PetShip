@@ -1,0 +1,43 @@
+{% extends 'layouts/admin.html' %}
+{% block title %}Veterinarian verification · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Veterinarian verification{% endblock %}
+{% block page_subtitle %}{{ pending|length }} {{ 'approved' if selected_view == 'approved' else 'veterinarians' }}{% endblock %}
+{% block content %}
+<nav class="row row-wrap mb-4" aria-label="Vet verification categories">
+  <a class="btn {{ 'btn-primary' if selected_view == 'all' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_vets', view='all') }}">All</a>
+  <a class="btn {{ 'btn-primary' if selected_view == 'visit' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_vets', view='visit') }}">Clinic Visit</a>
+  <a class="btn {{ 'btn-primary' if selected_view == 'approved' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_vets', view='approved') }}">Approved Vet</a>
+</nav>
+<p class="text-sm text-muted">Check licences with the Veterinary Council. Clinic Visit lists pending vet applications; visit scheduling is not currently part of vet verification.</p>
+<div class="grid grid-3">
+  {% for v in pending %}
+    <div class="card">
+      {% if v.is_verified %}<span class="badge badge-success">Approved</span>{% endif %}
+      <h3 class="mb-0">{{ v.display_name }}</h3>
+      <p class="text-sm text-muted">{{ v.qualifications or '' }}{% if v.experience_years %} · {{ v.experience_years }} yrs{% endif %}</p>
+      <div class="stack text-sm">
+        <div class="row spread"><span class="text-muted">Licence</span><strong>{{ v.licence_no or '—' }}</strong></div>
+        <div class="row spread"><span class="text-muted">Clinic</span><strong>{{ v.clinic_name or '—' }}</strong></div>
+        <div class="row spread"><span class="text-muted">City</span><strong>{{ v.city or '—' }}</strong></div>
+        <div class="row spread"><span class="text-muted">Phone</span><strong>{{ v.user.phone or '—' }}</strong></div>
+        <div class="row spread"><span class="text-muted">Email</span><strong>{{ v.user.email }}</strong></div>
+        {% if v.certificate_url %}
+          <a href="{{ v.certificate_url }}" target="_blank" rel="noopener">
+            <img src="{{ v.certificate_url }}" alt="Doctor certificate" style="max-width: 220px; max-height: 160px; object-fit: contain;">
+            <span class="d-block">View certificate</span>
+          </a>
+        {% endif %}
+      </div>
+      {% if not v.is_verified and v.user.registration_status == 'pending' %}
+      <form method="post" action="{{ url_for('admin.verify_vet', vet_id=v.id) }}" class="row mt-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline btn-sm" name="decision" value="reject" type="submit">Reject</button>
+        <button class="btn btn-primary btn-sm" name="decision" value="approve" type="submit">Approve</button>
+      </form>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="card"><p class="text-muted mb-0">No vets in this category.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

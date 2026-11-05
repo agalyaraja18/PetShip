@@ -1,0 +1,32 @@
+{% extends 'layouts/public.html' %}
+{% block title %}Share your story · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/content.css') }}">
+{% endblock %}
+{% block content %}
+<div style="max-width: 640px; margin: 0 auto;">
+  <h1>🐾 Share your happy tail</h1>
+  <p class="text-muted">Tell the community about you and your pet.</p>
+  <form method="post" enctype="multipart/form-data" class="card">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field"><label>Title</label><input class="input" name="title" placeholder="A new best friend"></div>
+    <div class="field"><label>Your pet's name</label><input class="input" name="pet_name"></div>
+    <div class="field"><label>In one line</label><input class="input" name="quote" required
+      placeholder="She owns the windowsill now, and my heart too."></div>
+    <div class="field"><label>Tell us more <span class="text-muted">(optional)</span></label>
+      <textarea class="textarea" name="body" rows="5"></textarea></div>
+    <div class="field">
+      <label>Photo <span class="text-muted">(optional)</span></label>
+      <div class="upload-drop" onclick="document.getElementById('story-photo').click()">
+        <div style="font-size: 2rem;">📷</div>
+        <div class="fw-600">Upload a photo of your pet</div>
+        <div class="text-sm text-muted">JPG, PNG, WebP — max 5 MB</div>
+        <input type="file" id="story-photo" name="photo" accept="image/*" style="display:none"
+               onchange="document.getElementById('story-photo-name').textContent = this.files[0]?.name || ''">
+      </div>
+      <div id="story-photo-name" class="text-sm text-muted mt-1"></div>
+    </div>
+    <button class="btn btn-primary" type="submit">Share story</button>
+  </form>
+</div>
+{% endblock %}

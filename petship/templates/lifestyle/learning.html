@@ -1,0 +1,48 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import progress, badge %}
+{% block title %}Pet care learning paths · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lifestyle.css') }}">
+{% endblock %}
+{% block page_title %}Pet care learning paths{% endblock %}
+{% block page_subtitle %}Practical, topic-specific lessons to help you care for your companion.{% endblock %}
+{% block content %}
+{% if resume %}
+<div class="card resume-card mb-5">
+  <div class="row spread">
+    <div>
+      <div class="text-sm text-primary fw-600">Continue learning</div>
+      <h3 class="mb-0">{{ resume.path.title }}</h3>
+      <p class="text-sm text-muted">{{ resume.progress }}% complete · {{ resume.path.lesson_count }} lessons</p>
+      <div style="max-width: 360px;">{{ progress(resume.progress) }}</div>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('learning.path_detail', slug=resume.path.slug) }}">
+      {{ 'Review' if resume.progress == 100 else 'Resume' }} lesson</a>
+  </div>
+</div>
+{% endif %}
+
+<div class="grid grid-3">
+  {% for c in cards %}
+    <a class="card learning-card" href="{{ url_for('learning.path_detail', slug=c.path.slug) }}">
+      <div class="learning-cover" data-level="{{ c.path.level }}">
+        <img src="{{ url_for('static', filename=c.cover_image[0]) }}"
+             alt="{{ c.cover_image[1] }}" loading="lazy" decoding="async">
+      </div>
+      <div class="mt-4">
+        {{ badge(c.path.level, 'neutral') }}
+        <h3 class="mt-4 mb-0">{{ c.path.title }}</h3>
+        <p class="text-sm text-muted">{{ c.path.lesson_count }} lessons · {{ c.path.quiz_count }} quiz · {{ c.path.duration_min }} min</p>
+        {{ progress(c.progress) }}
+        {% if c.progress == 100 %}
+          <p class="text-sm text-success mt-4 mb-0">✓ Completed · Certificate</p>
+        {% elif c.progress > 0 %}
+          <p class="text-sm text-muted mt-4 mb-0">{{ c.progress }}% complete</p>
+        {% else %}
+          <p class="text-sm text-primary mt-4 mb-0">Start path →</p>
+        {% endif %}
+      </div>
+    </a>
+  {% endfor %}
+</div>
+{% endblock %}

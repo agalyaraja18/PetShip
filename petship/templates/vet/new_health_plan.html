@@ -1,0 +1,61 @@
+{% extends 'layouts/vet.html' %}
+{% block title %}Schedule new plan · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Schedule new plan{% endblock %}
+{% block page_subtitle %}Enter the pet ID to share today's consultation and care plan with the owner.{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 760px;">
+  <form method="post" class="stack">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+      <label for="pet_id">Pet ID</label>
+      <input id="pet_id" class="input" name="pet_id" value="{{ pet_id }}" required
+             pattern="PET-[0-9]{8}" placeholder="PET-00000001">
+    </div>
+    <div class="field">
+      <label for="consultation">Today's consultation and health instructions</label>
+      <textarea id="consultation" class="textarea" name="consultation" rows="4" required></textarea>
+    </div>
+    <div class="field">
+      <label for="diagnosis">Diagnosis</label>
+      <textarea id="diagnosis" class="textarea" name="diagnosis" rows="2"></textarea>
+    </div>
+    <div class="field">
+      <label for="prescribed_medicines">Prescription / medicines</label>
+      <textarea id="prescribed_medicines" class="textarea" name="prescribed_medicines" rows="3"></textarea>
+    </div>
+    <div class="field">
+      <label class="row row-wrap" style="align-items:center; gap:var(--space-2);">
+        <input id="schedule_next_visit" type="checkbox" name="schedule_next_visit" value="yes">
+        <span>Schedule a next visit</span>
+      </label>
+    </div>
+    <div id="next_visit_fields" class="stack" hidden>
+      <div class="field">
+        <label for="next_visit_purpose">Purpose of next visit</label>
+        <input id="next_visit_purpose" class="input" type="text" name="next_visit_purpose"
+               maxlength="200" placeholder="Example: Review recovery and remove stitches">
+      </div>
+      <div class="field">
+        <label for="next_visit_on">Next visit date</label>
+        <input id="next_visit_on" class="input" type="date" name="next_visit_on" min="{{ today }}">
+      </div>
+    </div>
+    <div class="row row-wrap">
+      <button class="btn btn-primary" type="submit">Save and share with owner</button>
+      <a class="btn btn-ghost" href="{{ url_for('vet_workspace.patients') }}">Cancel</a>
+    </div>
+  </form>
+</div>
+<script>
+  const scheduleNextVisit = document.getElementById("schedule_next_visit");
+  const nextVisitFields = document.getElementById("next_visit_fields");
+  const nextVisitPurpose = document.getElementById("next_visit_purpose");
+  const nextVisitDate = document.getElementById("next_visit_on");
+
+  scheduleNextVisit.addEventListener("change", function () {
+    nextVisitFields.hidden = !this.checked;
+    nextVisitPurpose.required = this.checked;
+    nextVisitDate.required = this.checked;
+  });
+</script>
+{% endblock %}

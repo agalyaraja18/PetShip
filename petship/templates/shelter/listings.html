@@ -1,0 +1,89 @@
+{% extends 'layouts/shelter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Manage pet listings · {{ APP_NAME }}{% endblock %}
+{% block page_head %}
+  <div class="row spread">
+    <div>
+      <h1 class="mb-0">Manage pet listings</h1>
+      <p class="text-muted mb-0">{{ counts.all }} listings</p>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('shelter_pets.add') }}">+ Add New Pet</a>
+  </div>
+{% endblock %}
+{% block content %}
+<div class="row row-wrap mb-4">
+  {% for key, label in [('all','All'),('available','Available'),('reserved','Reserved'),('adopted','Adopted'),('draft','Drafts')] %}
+    <a class="pill {{ 'is-active' if status_filter == key }}"
+       href="{{ url_for('shelter_pets.listings', status=key) }}">{{ label }} ({{ counts[key] }})</a>
+  {% endfor %}
+</div>
+
+<div class="card shelter-listings-card">
+  <div class="shelter-listings-scroll">
+  <table class="data-table shelter-listings-table">
+    <colgroup>
+      <col class="pet-column">
+      <col class="species-column">
+      <col class="listed-column">
+      <col class="views-column">
+      <col class="applications-column">
+      <col class="status-column">
+      <col class="actions-column">
+    </colgroup>
+    <thead><tr><th>Pet</th><th>Species</th><th>Listed</th><th>Views</th><th>Applications</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for pet in pets %}
+        <tr>
+          <td>
+            <div class="shelter-listing-pet">
+              {% if pet.primary_photo %}
+                <img class="list-thumb" src="{{ pet.primary_photo }}" alt="{{ pet.name }}">
+              {% else %}
+                <div class="list-thumb pet-card-placeholder" data-species="{{ pet.species.value }}"><span>{{ pet.name[0] }}</span></div>
+              {% endif %}
+              <div class="shelter-listing-pet-info">
+                <div class="fw-600">{{ pet.name }}</div>
+                {% if pet.breed %}<div class="text-sm text-muted">{{ pet.breed }}</div>{% endif %}
+              </div>
+            </div>
+          </td>
+          <td>{{ pet.species.label }}</td>
+          <td>{{ pet.created_at.strftime('%d %b') }}</td>
+          <td>{{ pet.views }}</td>
+          <td>{{ app_counts.get(pet.id, 0) }}</td>
+          <td>{{ badge(pet.status.label, pet.status.badge_variant) }}</td>
+          <td class="row" style="gap: var(--space-2);">
+            <a class="btn btn-outline btn-sm" href="{{ url_for('shelter_pets.edit', pet_id=pet.id) }}">Edit</a>
+            {% if pet.status == PetStatus.DRAFT %}
+              <form method="post" action="{{ url_for('shelter_pets.publish', pet_id=pet.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-primary btn-sm" type="submit">Publish</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7"><p class="text-muted mb-0">No pets in this view.</p></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+<style>
+.shelter-listings-scroll { overflow-x: auto; }
+.shelter-listings-table { min-width: 850px; table-layout: fixed; }
+.shelter-listings-table .pet-column { width: 27%; }
+.shelter-listings-table .species-column { width: 12%; }
+.shelter-listings-table .listed-column { width: 10%; }
+.shelter-listings-table .views-column { width: 8%; }
+.shelter-listings-table .applications-column { width: 12%; }
+.shelter-listings-table .status-column { width: 13%; }
+.shelter-listings-table .actions-column { width: 18%; }
+.shelter-listings-table th,
+.shelter-listings-table td { overflow-wrap: anywhere; }
+.shelter-listings-table td:first-child { overflow-wrap: normal; }
+.shelter-listing-pet { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.shelter-listings-table .list-thumb { display: block; width: 48px; height: 48px; flex: 0 0 48px; object-fit: cover; border-radius: var(--radius-sm); }
+.shelter-listing-pet-info { min-width: 0; overflow-wrap: anywhere; }
+</style>
+{% endblock %}

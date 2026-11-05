@@ -1,0 +1,50 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag, progress %}
+{% block title %}Your top matches · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ai.css') }}">
+{% endblock %}
+{% block content %}
+<div class="row spread row-wrap">
+  <div>
+    {{ tag('AI recommendations') }}
+    <h1 class="mb-0">Your top {{ matches|length }} matches</h1>
+    <p class="text-muted">Based on your lifestyle, home, and experience.</p>
+  </div>
+  <a class="btn btn-outline" href="{{ url_for('ai.quiz', step=1) }}">Retake quiz</a>
+</div>
+
+{% if matches %}
+<div class="grid grid-3 mt-5">
+  {% for m in matches %}
+    <article class="card ai-match-card">
+      <a class="ai-match-media" href="{{ url_for('pets.detail', pet_id=m.pet.id) }}">
+        {% set match_photo = safe_pet_photo(m.pet) %}
+        {% if match_photo %}<img src="{{ match_photo }}" alt="{{ m.pet.name }}">
+        {% else %}<div class="pet-card-placeholder" data-species="{{ m.pet.species.value }}"><span>{{ m.pet.name[0] }}</span></div>{% endif %}
+        <span class="ai-score-badge">{{ m.score }}%</span>
+      </a>
+      <div class="ai-match-body">
+        <h3 class="mb-0"><a href="{{ url_for('pets.detail', pet_id=m.pet.id) }}">{{ m.pet.name }}</a></h3>
+        <p class="text-sm text-muted">{{ m.pet.breed or m.pet.species.label }} · {{ m.pet.age_text }} · {{ m.pet.shelter.name }}</p>
+        <div class="ai-fit">
+          <div class="row spread text-sm"><span>Lifestyle fit</span><strong>{{ m.lifestyle }}%</strong></div>
+          {{ progress(m.lifestyle) }}
+          <div class="row spread text-sm mt-4"><span>Space fit</span><strong>{{ m.space }}%</strong></div>
+          {{ progress(m.space) }}
+        </div>
+        <div class="ai-why card card-muted">
+          <span class="text-sm"><strong>Why:</strong> {{ m.reason }}</span>
+        </div>
+        <a class="btn btn-primary btn-block mt-4" href="{{ url_for('pets.detail', pet_id=m.pet.id) }}">Meet {{ m.pet.name }}</a>
+      </div>
+    </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card mt-5 text-center">
+  <p class="text-muted">We couldn't find matches yet. Take the quiz to get personalised matches.</p>
+  <a class="btn btn-primary" href="{{ url_for('ai.quiz', step=1) }}">Take the quiz</a>
+</div>
+{% endif %}
+{% endblock %}

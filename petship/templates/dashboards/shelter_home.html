@@ -1,0 +1,11 @@
+{% extends 'layouts/shelter.html' %}
+{% set active_nav = 'dashboard' %}
+{% block title %}Shelter dashboard · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Shelter overview{% endblock %}
+{% block page_subtitle %}{% endblock %}
+{% block content %}
+<div class="card">
+  <p class="mb-0">You're logged in as a <strong>Shelter</strong>. The full dashboard arrives in Phase 3.</p>
+  <a class="btn btn-ghost mt-4" href="{{ url_for('auth.logout') }}">Log out</a>
+</div>
+{% endblock %}

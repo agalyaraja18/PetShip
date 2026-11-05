@@ -1,0 +1,86 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}My Pets · {{ APP_NAME }}{% endblock %}
+{% block page_title %}My Pets 🐾{% endblock %}
+{% block page_subtitle %}Everything about your family members in one place.{% endblock %}
+{% block content %}
+<div class="grid grid-3">
+  {% for pet in pets %}
+    <div class="card pet-card">
+      <div class="pet-card-photo">
+        {% if pet.photo_url %}
+          <img class="pet-card-img" src="{{ pet.photo_url }}" alt="{{ pet.name }}">
+        {% else %}
+          <div class="pet-card-img pet-card-initials">{{ pet.name[0] | upper }}</div>
+        {% endif %}
+        <div class="pet-card-species-badge">
+          {% if pet.species %}{{ badge(pet.species | capitalize, 'info') }}{% endif %}
+        </div>
+      </div>
+      <div class="pet-card-body">
+        <h3 class="mb-0">{{ pet.name }}</h3>
+        <div class="text-xs text-muted mb-2">Pet ID: {{ pet.public_pet_id }}</div>
+        <div class="text-sm text-muted mb-2">
+          {{ pet.breed or (pet.species | capitalize if pet.species else 'Pet') }}
+          {% if pet.age_text %} · {{ pet.age_text }}{% endif %}
+          {% if pet.sex %} · {{ pet.sex | capitalize }}{% endif %}
+        </div>
+        {% if pet.adopted_on %}
+          <div class="text-xs text-muted mb-3">🏠 Adopted {{ pet.adopted_on.strftime('%d %b %Y') }}</div>
+        {% endif %}
+        <div class="grid grid-2 mb-4" style="gap: var(--space-2);">
+          <div class="stat-card">
+            <div class="stat-value">{{ pet.weight_kg if pet.weight_kg else '—' }}</div>
+            <div class="stat-sub">kg</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ pet.unique_vaccination_count }}</div>
+            <div class="stat-sub">vaccines</div>
+          </div>
+        </div>
+        <div class="pet-card-actions">
+          <a class="btn btn-primary btn-sm" href="{{ url_for('adopter.pet_profile', pet_id=pet.id) }}">
+            🐾 Profile
+          </a>
+          <a class="btn btn-teal btn-sm" href="{{ url_for('adopter.pet_health', pet_id=pet.id) }}">
+            ❤️ Health
+          </a>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="card text-center" style="grid-column: span 3; padding: var(--space-8);">
+      <div style="font-size: 3rem; margin-bottom: var(--space-3);">🐾</div>
+      <h3>No pets yet</h3>
+      <p class="text-muted">Add your first pet below to get started.</p>
+    </div>
+  {% endfor %}
+
+  <form class="card add-pet-card" method="post" action="{{ url_for('adopter.add_pet') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="font-size: 2rem; text-align:center; margin-bottom: var(--space-3);">➕</div>
+    <div class="text-primary fw-600 text-center mb-3">Add another friend</div>
+    <input class="input" name="name" placeholder="Pet's name" required>
+    <input class="input mt-3" name="species" placeholder="Species (Cat, Dog…)">
+    <button class="btn btn-primary mt-4 btn-block" type="submit">Add pet</button>
+  </form>
+</div>
+
+<style>
+.pet-card { padding: 0; overflow: hidden; }
+.pet-card-photo { position: relative; }
+.pet-card-img { width: 100%; height: 160px; object-fit: cover; display: block; }
+.pet-card-initials {
+  width: 100%; height: 160px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 3rem; font-weight: 700; color: #fff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary, #7c3aed));
+}
+.pet-card-species-badge { position: absolute; top: var(--space-3); right: var(--space-3); }
+.pet-card-body { padding: var(--space-4); }
+.pet-card-actions { display: flex; gap: var(--space-2); }
+.btn-teal { background: #0d9488; color: #fff; border: none; }
+.btn-teal:hover { background: #0f766e; color: #fff; }
+.add-pet-card { display: flex; flex-direction: column; justify-content: center; min-height: 280px; }
+</style>
+{% endblock %}

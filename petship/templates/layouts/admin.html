@@ -1,0 +1,27 @@
+{% extends 'layouts/sidebar_base.html' %}
+{% set shell_class = 'shell-dark' %}
+{% set active_nav = active_nav | default('') %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+  {% block admin_head %}{% endblock %}
+{% endblock %}
+
+{% block sidebar_sub %}
+  <div class="sidebar-sub">Admin console</div>
+{% endblock %}
+
+{% block sidenav %}
+  <li><a href="{{ url_for('admin.dashboard') }}" class="{{ 'is-active' if active_nav == 'overview' }}">Overview</a></li>
+  <li><a href="{{ url_for('admin.users') }}" class="{{ 'is-active' if active_nav == 'users' }}">Users</a></li>
+  <li><a href="{{ url_for('admin.verify_shelters') }}" class="{{ 'is-active' if active_nav == 'shelterverify' }}">Shelter Verification</a></li>
+  <li><a href="{{ url_for('admin.verify_vets') }}" class="{{ 'is-active' if active_nav == 'vetverify' }}">Vet Verification</a></li>
+  <li><a href="{{ url_for('admin_mod.listings') }}" class="{{ 'is-active' if active_nav == 'moderation' }}">Listing Moderation</a></li>
+  <li><a href="{{ url_for('admin_mod.adoptions') }}" class="{{ 'is-active' if active_nav == 'adoptions' }}">Adoptions</a></li>
+  <li><a href="{{ url_for('admin.lost_found') }}" class="{{ 'is-active' if active_nav == 'lostfound' }}">Lost &amp; Found</a></li>
+  <li><a href="{{ url_for('admin_mod.reviews') }}" class="{{ 'is-active' if active_nav == 'reviews' }}">Reviews</a></li>
+  <li><a href="{{ url_for('admin.messages') }}" class="{{ 'is-active' if active_nav == 'messages' }}">Messages</a></li>
+  <li><a href="{{ url_for('admin_mod.reports') }}" class="{{ 'is-active' if active_nav == 'reports' }}">Reports</a></li>
+  <li><a href="{{ url_for('admin.feedback') }}" class="{{ 'is-active' if active_nav == 'feedback' }}">Feedback</a></li>
+  <li><a href="{{ url_for('admin.analytics') }}" class="{{ 'is-active' if active_nav == 'analytics' }}">Analytics</a></li>
+{% endblock %}

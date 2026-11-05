@@ -1,0 +1,46 @@
+{% extends 'layouts/shelter.html' %}
+{% block title %}Shelter profile · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Shelter profile{% endblock %}
+{% block page_subtitle %}{% endblock %}
+{% block content %}
+{% if edit_mode %}
+<form method="post" class="card" style="max-width: 720px;">
+  {{ form.hidden_tag() }}
+  <div class="field"><label for="{{ form.name.id }}">{{ form.name.label.text }}</label>{{ form.name(class='input') }}{% for error in form.name.errors %}<div class="field-error">{{ error }}</div>{% endfor %}</div>
+  <div class="grid grid-2">
+    <div class="field"><label for="{{ form.address.id }}">{{ form.address.label.text }}</label>{{ form.address(class='input') }}</div>
+    <div class="field"><label for="{{ form.city.id }}">{{ form.city.label.text }}</label>{{ form.city(class='input') }}</div>
+    <div class="field"><label for="{{ form.phone.id }}">{{ form.phone.label.text }}</label>{{ form.phone(class='input') }}</div>
+    <div class="field"><label for="{{ form.contact_name.id }}">{{ form.contact_name.label.text }}</label>{{ form.contact_name(class='input') }}</div>
+  </div>
+  <div class="field"><label for="{{ form.about.id }}">{{ form.about.label.text }}</label>{{ form.about(class='textarea') }}</div>
+  <div class="grid grid-3">
+    <div class="field"><label for="{{ form.registration_no.id }}">{{ form.registration_no.label.text }}</label>{{ form.registration_no(class='input') }}</div>
+    <div class="field"><label for="{{ form.capacity.id }}">{{ form.capacity.label.text }}</label>{{ form.capacity(class='input') }}</div>
+    <div class="field"><label for="{{ form.operating_since.id }}">{{ form.operating_since.label.text }}</label>{{ form.operating_since(class='input') }}</div>
+  </div>
+  <div class="row spread">
+    <a class="btn btn-ghost" href="{{ url_for('shelter.profile') }}">Cancel</a>
+    <button class="btn btn-primary" type="submit">Save changes</button>
+  </div>
+</form>
+{% else %}
+<section class="card" style="max-width: 720px;">
+  <div class="row spread mb-4">
+    <h2 class="mb-0">{{ shelter.name }}</h2>
+    <a class="btn btn-primary" href="{{ url_for('shelter.profile', edit=1) }}">Edit profile</a>
+  </div>
+  <div class="stack">
+    <div><span class="text-muted">Role</span><div>{{ current_user.role.label }}</div></div>
+    <div><span class="text-muted">Owner name</span><div>{{ shelter.owner.full_name if shelter.owner else '—' }}</div></div>
+    <div><span class="text-muted">Address</span><div>{{ shelter.address or shelter.city or '—' }}</div></div>
+    <div><span class="text-muted">Phone number</span><div>{{ shelter.owner.phone if shelter.owner and shelter.owner.phone else '—' }}</div></div>
+    <div><span class="text-muted">About</span><div>{{ shelter.about or '—' }}</div></div>
+    <div><span class="text-muted">Registration no.</span><div>{{ shelter.registration_no or '—' }}</div></div>
+    <div><span class="text-muted">Capacity</span><div>{{ shelter.capacity or '—' }}</div></div>
+    <div><span class="text-muted">Operating since</span><div>{{ shelter.operating_since or '—' }}</div></div>
+  </div>
+  <a class="text-primary text-sm mt-4" href="{{ url_for('shelter.public', slug=shelter.slug) }}">View public page →</a>
+</section>
+{% endif %}
+{% endblock %}

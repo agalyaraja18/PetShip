@@ -1,0 +1,42 @@
+{% extends 'layouts/shelter.html' if is_shelter else 'layouts/adopter.html' %}
+{% block title %}Create a task · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Create a task{% endblock %}
+{% block page_subtitle %}Add a reminder to your Smart Reminder Centre.{% endblock %}
+{% block content %}
+<section class="card" style="max-width: 760px;">
+  <form method="post" action="{{ url_for('reminders.add') }}" class="grid grid-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+      <label for="reminder-title">Task</label>
+      <input id="reminder-title" class="input" name="title" placeholder="e.g. Prepare pet's food" required>
+    </div>
+    {% if pets %}
+      <div class="field">
+        <label for="reminder-pet">Pet (optional)</label>
+        <select id="reminder-pet" class="select" name="pet_id">
+          <option value="">Any</option>
+          {% for pet in pets %}<option value="{{ pet.id }}">{{ pet.name }}</option>{% endfor %}
+        </select>
+      </div>
+    {% endif %}
+    <div class="field">
+      <label for="reminder-recurrence">Repeat</label>
+      <select id="reminder-recurrence" class="select" name="recurrence">
+        {% for recurrence in recurrences %}<option value="{{ recurrence.value }}">{{ recurrence.label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="reminder-date">Date</label>
+      <input id="reminder-date" class="input" type="date" name="next_due" required>
+    </div>
+    <div class="field">
+      <label for="reminder-time">Time</label>
+      <input id="reminder-time" class="input" type="time" name="at_time" required>
+    </div>
+    <div class="row row-wrap">
+      <a class="btn btn-ghost" href="{{ url_for('reminders.centre') }}">Cancel</a>
+      <button class="btn btn-primary" type="submit">Save task</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

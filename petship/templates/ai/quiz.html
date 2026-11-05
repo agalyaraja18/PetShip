@@ -1,0 +1,61 @@
+{% extends 'layouts/root.html' %}
+{% block title %}Compatibility quiz · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ai.css') }}">
+{% endblock %}
+{% block body %}
+<header class="topbar">
+  <div class="container row spread">
+    <a class="brand" href="{{ url_for('pets.home') }}">{{ APP_NAME }}</a>
+    <span class="text-sm text-muted">Question {{ step }} of {{ total }}</span>
+  </div>
+</header>
+
+<div class="quiz-progress"><span style="width: {{ (100 * step / total)|int }}%"></span></div>
+
+<main class="container quiz-main">
+  <form method="post" action="{{ url_for('ai.quiz', step=step) }}" class="quiz-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="text-center">
+      <div class="text-sm text-primary fw-600">{{ question.label }}</div>
+      <h1 class="quiz-prompt">{{ question.prompt }}</h1>
+    </div>
+
+    <div class="quiz-options" data-name="{{ question.id }}">
+      {% for value, title, desc, icon in question.options %}
+        <label class="quiz-option {{ 'is-selected' if answers.get(question.id) == value }}">
+          <input type="radio" name="{{ question.id }}" value="{{ value }}" hidden
+                 {{ 'checked' if answers.get(question.id) == value }}>
+          <div class="quiz-icon">{{ icon }}</div>
+          <div class="fw-600">{{ title }}</div>
+          <div class="text-sm text-muted">{{ desc }}</div>
+        </label>
+      {% endfor %}
+    </div>
+
+    <div class="row spread quiz-actions">
+      {% if step > 1 %}
+        <button class="btn btn-outline" name="action" value="back" type="submit">← Back</button>
+      {% else %}
+        <a class="btn btn-ghost" href="{{ url_for('ai.teaser') }}">Save &amp; exit</a>
+      {% endif %}
+      <button class="btn btn-primary" name="action" value="next" type="submit">
+        {{ 'See my result →' if step == total else 'Next question →' }}
+      </button>
+    </div>
+  </form>
+</main>
+
+<script>
+  // Auto-select a clicked option; the form submits on Next.
+  document.querySelectorAll('.quiz-option').forEach(function (opt) {
+    opt.addEventListener('click', function () {
+      document.querySelectorAll('.quiz-option').forEach(function (o) {
+        o.classList.remove('is-selected');
+      });
+      opt.classList.add('is-selected');
+      opt.querySelector('input').checked = true;
+    });
+  });
+</script>
+{% endblock %}

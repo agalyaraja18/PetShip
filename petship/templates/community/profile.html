@@ -1,0 +1,48 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag, badge %}
+{% block title %}{{ profile_user.full_name }} · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/community.css') }}">
+{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="row spread row-wrap">
+    <div class="row" style="gap: var(--space-4);">
+      {% if profile_user.avatar_url %}<img class="avatar avatar-lg" src="{{ profile_user.avatar_url }}" alt="">
+      {% else %}<div class="avatar avatar-lg profile-initials">{{ profile_user.initials }}</div>{% endif %}
+      <div>
+        <h1 class="mb-0">{{ profile_user.full_name }}</h1>
+        <p class="text-muted mb-0">{{ profile_user.city or '' }} · Joined {{ profile_user.created_at.year }}</p>
+        <div class="row row-wrap mt-4">
+          {% if profile_user.role.value == 'vet' %}{{ badge('Verified vet', 'success') }}{% endif %}
+          {% for t in profile_user.tags %}{{ tag(t) }}{% endfor %}
+        </div>
+      </div>
+    </div>
+    {% if current_user.is_authenticated and current_user.id != profile_user.id %}
+      <form method="post" action="{{ url_for('community.follow', user_id=profile_user.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn {{ 'btn-outline' if is_following else 'btn-primary' }}" type="submit">
+          {{ 'Following' if is_following else 'Follow' }}</button>
+      </form>
+    {% endif %}
+  </div>
+  <div class="profile-stats mt-5">
+    <div><div class="fact-value">{{ posts|length }}</div><div class="text-sm text-muted">Posts</div></div>
+    <div><div class="fact-value">{{ followers }}</div><div class="text-sm text-muted">Followers</div></div>
+  </div>
+</div>
+
+<h2 class="mt-5">Posts</h2>
+<div class="stack">
+  {% for post in posts %}
+    <a class="card post-card" href="{{ url_for('community.discussion', post_id=post.id) }}">
+      {% if post.title %}<div class="fw-600">{{ post.title }}</div>{% endif %}
+      <p class="text-sm text-muted mb-0">{{ post.body[:120] }}{% if post.body|length > 120 %}…{% endif %}</p>
+      <div class="text-sm text-muted mt-4">♥ {{ post.like_count }} · 💬 {{ post.comment_count }} · {{ post.created_at.strftime('%d %b') }}</div>
+    </a>
+  {% else %}
+    <div class="card"><p class="text-muted mb-0">No posts yet.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

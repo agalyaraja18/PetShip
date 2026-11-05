@@ -1,0 +1,50 @@
+{% extends 'auth/_auth_base.html' %}
+{% from 'partials/macros.html' import field %}
+{% block title %}Registration status · {{ APP_NAME }}{% endblock %}
+{% block panel %}
+<h1>Registration Status</h1>
+{% if not result %}
+<p class="text-muted">Check your shelter or veterinarian application using the email and private access code shown when you registered.</p>
+{% endif %}
+
+{% if result %}
+  <div class="card card-muted mb-4">
+    {% if result.status == 'Approved' %}
+      <h2 class="h3">{{ 'Your shelter is approved' if result.role == 'shelter' else 'Your clinic is approved' }}</h2>
+    {% elif result.status == 'Not approved' %}
+      <h2 class="h3">Not approved</h2>
+    {% else %}
+      <h2 class="h3">Registration under review</h2>
+    {% endif %}
+    <p class="mb-2"><strong>Status:</strong> {{ result.status }}</p>
+    {% if result.visit_at %}
+      <p class="mb-2"><strong>Shelter visit:</strong> {{ result.visit_at.strftime('%d %b %Y at %I:%M %p UTC') }}</p>
+      {% if result.visit_completed %}<p class="mb-2">Visit completed; final review is pending.</p>{% endif %}
+    {% endif %}
+    {% if result.user_id %}
+      <p class="mb-0"><strong>Your user ID:</strong> {{ result.user_id }}</p>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% if result and result.can_set_password %}
+  <form method="post" class="stack mb-5">
+    {{ password_form.hidden_tag() }}
+    <input type="hidden" name="action" value="set_password">
+    {{ field(password_form.password) }}
+    {{ field(password_form.confirm) }}
+    <button class="btn btn-primary btn-block" type="submit">Create login password</button>
+  </form>
+{% endif %}
+
+{% if not result %}
+<form method="post" class="stack">
+  {{ form.hidden_tag() }}
+  {{ field(form.role) }}
+  {{ field(form.email) }}
+  {{ field(form.access_code) }}
+  <button class="btn btn-outline btn-block" type="submit">Check status</button>
+</form>
+<p class="auth-foot"><a href="{{ url_for('auth.register') }}">Create a registration</a></p>
+{% endif %}
+{% endblock %}

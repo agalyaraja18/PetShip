@@ -1,0 +1,263 @@
+{% extends 'layouts/adopter.html' %}
+{% block title %}{{ pet.name }}'s profile · {{ APP_NAME }}{% endblock %}
+{% block page_title %}{{ pet.name }}'s profile{% endblock %}
+{% block page_subtitle %}{% endblock %}
+{% block content %}
+<div class="row row-wrap mb-4">
+  {% for key, label in [('basic','Basic info'),('diet','Diet & routine')] %}
+    <a class="pill {{ 'is-active' if tab == key }}" href="{{ url_for('adopter.pet_profile', pet_id=pet.id, tab=key) }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+{% if tab == 'basic' %}
+  {% if not edit_mode %}
+  <div class="card" style="max-width: 820px;">
+    <div class="row spread mb-4">
+      <h3 class="mb-0">Basic information</h3>
+      <a class="btn btn-primary" href="{{ url_for('adopter.pet_profile', pet_id=pet.id, tab='basic', edit=1) }}">Edit profile</a>
+    </div>
+    <div class="row" style="gap: var(--space-5); align-items: flex-start;">
+      {% if pet.photo_url %}<img class="avatar avatar-lg" src="{{ pet.photo_url }}" alt="{{ pet.name }}">
+      {% else %}<div class="avatar avatar-lg profile-initials">{{ pet.name[0] }}</div>{% endif %}
+      <div class="grid grid-2" style="flex:1;">
+        <div><div class="text-sm text-muted">Name</div><div class="fw-600">{{ pet.name }}</div></div>
+        <div><div class="text-sm text-muted">Species &amp; breed</div><div class="fw-600">{{ pet.species or '—' }}{% if pet.breed %} · {{ pet.breed }}{% endif %}</div></div>
+        <div><div class="text-sm text-muted">Date of birth</div><div class="fw-600">{{ pet.date_of_birth.strftime('%d %b %Y') if pet.date_of_birth else '—' }}</div></div>
+        <div><div class="text-sm text-muted">Microchip ID</div><div class="fw-600">{{ pet.microchip_id or '—' }}</div></div>
+        <div><div class="text-sm text-muted">Weight</div><div class="fw-600">{{ pet.weight_kg ~ ' kg' if pet.weight_kg else '—' }}</div></div>
+        <div><div class="text-sm text-muted">Primary vet</div><div class="fw-600">
+          {% if pet.primary_vet %}<a href="{{ url_for('vet.directory', q=pet.primary_vet) }}">{{ pet.primary_vet }}</a>
+          {% else %}<a href="{{ url_for('vet.directory') }}">Assign a vet</a>{% endif %}
+        </div></div>
+        <div><div class="text-sm text-muted">Sex</div><div class="fw-600">{{ pet.sex or '—' }}</div></div>
+        <div><div class="text-sm text-muted">Personality</div><div class="fw-600">{{ (pet.personality_tags or [])|join(', ') or '—' }}</div></div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <form method="post" enctype="multipart/form-data" class="card" style="max-width: 820px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="section" value="basic">
+    <div class="row" style="gap: var(--space-5); align-items: flex-start;">
+      <div class="text-center">
+        {% if pet.photo_url %}<img class="avatar avatar-lg" src="{{ pet.photo_url }}" alt="">
+        {% else %}<div class="avatar avatar-lg profile-initials">{{ pet.name[0] }}</div>{% endif %}
+        <label class="btn btn-outline btn-sm mt-4" style="cursor:pointer;">Photo<input type="file" name="photo" accept="image/*" hidden></label>
+      </div>
+      <div style="flex:1;">
+        <div class="grid grid-2">
+          <div class="field"><label>Name</label><input class="input" name="name" value="{{ pet.name }}"></div>
+          <div class="field"><label>Species</label><input class="input" name="species" value="{{ pet.species or '' }}" placeholder="Cat, Dog..."></div>
+          <div class="field"><label>Breed</label><input class="input" name="breed" value="{{ pet.breed or '' }}"></div>
+          <div class="field"><label>Date of birth</label><input class="input" type="date" name="date_of_birth" value="{{ pet.date_of_birth.isoformat() if pet.date_of_birth else '' }}"></div>
+          <div class="field"><label>Microchip ID</label><input class="input" name="microchip_id" value="{{ pet.microchip_id or '' }}"></div>
+          <div class="field"><label>Weight (kg)</label><input class="input" type="number" step="0.1" name="weight_kg" value="{{ pet.weight_kg or '' }}"></div>
+          <div class="field"><label for="primary-vet">Primary vet</label>
+            <select id="primary-vet" class="select" name="primary_vet">
+              <option value="">Not assigned</option>
+              {% if pet.primary_vet and pet.primary_vet not in primary_vets|map(attribute='display_name')|list %}
+                <option value="{{ pet.primary_vet }}" selected>{{ pet.primary_vet }} (current)</option>
+              {% endif %}
+              {% for vet in primary_vets %}
+                <option value="{{ vet.display_name }}" {{ 'selected' if pet.primary_vet == vet.display_name }}>{{ vet.display_name }}{% if vet.clinic_name %} · {{ vet.clinic_name }}{% endif %}</option>
+              {% endfor %}
+            </select>
+            <a class="text-sm" href="{{ url_for('vet.directory') }}">Find a vet</a>
+          </div>
+          <div class="field"><label>Sex</label><input class="input" name="sex" value="{{ pet.sex or '' }}"></div>
+        </div>
+        <div class="field"><label>Personality</label>
+          <div class="row row-wrap">
+            {% for t in personality_options %}
+              <label class="pill {{ 'is-active' if t in (pet.personality_tags or []) }}">
+                <input type="checkbox" name="personality_tags" value="{{ t }}" hidden {{ 'checked' if t in (pet.personality_tags or []) }}>{{ t }}</label>
+            {% endfor %}
+          </div>
+        </div>
+        <button class="btn btn-primary" type="submit">Save changes</button>
+        <a class="btn btn-ghost" href="{{ url_for('adopter.pet_profile', pet_id=pet.id) }}">Cancel</a>
+      </div>
+    </div>
+  </form>
+  {% endif %}
+
+{% elif tab == 'diet' %}
+  <div class="grid grid-2">
+    <section class="card">
+      <div class="row spread mb-4">
+        <div>
+          <h3 class="mb-1">Diet plan</h3>
+          <p class="text-sm text-muted mb-0">Food, quantity, and meal times for {{ pet.name }}.</p>
+        </div>
+        {% if not edit_diet and not add_diet %}
+          <div class="row row-wrap">
+            {% if care_plans.diet_plan or pet.diet_note %}
+              <a class="btn btn-outline btn-sm" href="{{ url_for('adopter.pet_profile', pet_id=pet.id, tab='diet', edit_diet=1) }}">Edit current plan</a>
+            {% endif %}
+            <a class="btn btn-primary btn-sm" href="{{ url_for('adopter.pet_profile', pet_id=pet.id, tab='diet', add_diet=1) }}">Add a diet plan</a>
+          </div>
+        {% endif %}
+      </div>
+      {% if add_diet %}
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="section" value="add_diet_plan">
+          <div class="field"><label for="diet-plan-name">Plan name</label><input id="diet-plan-name" class="input" name="diet_plan_name" maxlength="100" required placeholder="e.g. Weight management"></div>
+          <div id="new-diet-plan" class="stack">
+            <div class="diet-row grid grid-2" style="gap: var(--space-3); align-items: end;">
+              <div class="field"><label>Food</label><input class="input" name="diet_food" maxlength="160" placeholder="Food or meal"></div>
+              <div class="field"><label>Quantity</label><input class="input" name="diet_quantity" maxlength="120" placeholder="Amount or serving"></div>
+              <div class="field"><label>Time</label><input class="input" type="time" name="diet_time"></div>
+              <button class="btn btn-ghost btn-sm remove-diet-row" type="button">Remove meal</button>
+            </div>
+          </div>
+          <button id="add-new-diet-row" class="btn btn-outline btn-sm mt-3" type="button">Add a meal</button>
+          <div class="field mt-4"><label>Plan notes</label><textarea class="textarea" name="diet_plan_note" maxlength="2000" placeholder="Allergies, food preferences, or other details..."></textarea></div>
+          <button class="btn btn-primary" type="submit">Save new diet plan</button>
+          <a class="btn btn-ghost" href="{{ url_for('adopter.pet_profile', pet_id=pet.id, tab='diet') }}">Cancel</a>
+        </form>
+        <hr>
+      {% endif %}
+      {% for plan in care_plans.diet_plans %}
+        <div class="card card-muted mb-4">
+          <h4 class="mb-3">{{ plan.get('name') or 'Diet plan' }}</h4>
+          <div class="stack">
+            {% for item in plan.get('meals', []) %}
+              <div>
+                <div class="fw-600">{{ item.get('food') or 'Meal' }}</div>
+                <div class="text-sm text-muted">{{ item.get('quantity') or '' }}{% if item.get('quantity') and item.get('time') %} · {% endif %}{{ item.get('time') or '' }}</div>
+              </div>
+            {% endfor %}
+          </div>
+          {% if plan.get('notes') %}<p class="mt-3 mb-0"><strong>Notes:</strong> {{ plan.get('notes') }}</p>{% endif %}
+        </div>
+      {% endfor %}
+      {% if edit_diet %}
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="section" value="diet_plan">
+          <div id="diet-plan" class="stack">
+            {% for item in care_plans.diet_plan or [{}] %}
+              <div class="diet-row grid grid-2" style="gap: var(--space-3); align-items: end;">
+                <div class="field"><label>Food</label><input class="input" name="diet_food" maxlength="160" value="{{ item.get('food', '') }}" placeholder="Food or meal"></div>
+                <div class="field"><label>Quantity</label><input class="input" name="diet_quantity" maxlength="120" value="{{ item.get('quantity', '') }}" placeholder="Amount or serving"></div>
+                <div class="field"><label>Time</label><input class="input" type="time" name="diet_time" value="{{ item.get('time', '') }}"></div>
+                <button class="btn btn-ghost btn-sm remove-diet-row" type="button">Remove meal</button>
+              </div>
+            {% endfor %}
+          </div>
+          <button id="add-diet-row" class="btn btn-outline btn-sm mt-3" type="button">Add a meal</button>
+          <div class="field mt-4"><label>Extra diet notes</label>
+            <textarea class="textarea" name="diet_note" maxlength="2000" placeholder="Allergies, food preferences, or other details...">{{ pet.diet_note or '' }}</textarea>
+          </div>
+          <button class="btn btn-primary" type="submit">Save diet plan</button>
+          <a class="btn btn-ghost" href="{{ url_for('adopter.pet_profile', pet_id=pet.id, tab='diet') }}">Cancel</a>
+        </form>
+      {% else %}
+        {% if care_plans.diet_plan %}
+          <div class="stack">
+            {% for item in care_plans.diet_plan %}
+              <div class="row spread card card-muted">
+                <div>
+                  <div class="fw-600">{{ item.get('food') or 'Meal' }}</div>
+                  <div class="text-sm text-muted">
+                    {% if item.get('quantity') %}{{ item.get('quantity') }}{% endif %}
+                    {% if item.get('quantity') and item.get('time') %} · {% endif %}
+                    {{ item.get('time') or '' }}
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-muted">No diet plan added yet.</p>
+        {% endif %}
+        {% if pet.diet_note %}<p class="mt-4 mb-0"><strong>Extra notes:</strong> {{ pet.diet_note }}</p>{% endif %}
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <div class="row spread mb-4">
+        <div>
+          <h3 class="mb-1">Routine plan</h3>
+          <p class="text-sm text-muted mb-0">A daily routine, such as an evening walk at 5 pm.</p>
+        </div>
+        {% if not edit_routine and not add_routine %}
+          <div class="row row-wrap">
+            {% if care_plans.routine_plan %}
+              <a class="btn btn-outline btn-sm" href="{{ url_for('adopter.pet_profile', pet_id=pet.id, tab='diet', edit_routine=1) }}">Edit current plan</a>
+            {% endif %}
+            <a class="btn btn-primary btn-sm" href="{{ url_for('adopter.pet_profile', pet_id=pet.id, tab='diet', add_routine=1) }}">Add a routine plan</a>
+          </div>
+        {% endif %}
+      </div>
+      {% if add_routine %}
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="section" value="add_routine_plan">
+          <div class="field"><label for="routine-plan-name">Plan name</label><input id="routine-plan-name" class="input" name="routine_plan_name" maxlength="100" required placeholder="e.g. Weekday routine"></div>
+          <div class="field">
+            <label for="new-routine-plan">Daily routine</label>
+            <textarea id="new-routine-plan" class="textarea" name="routine_plan_details" maxlength="4000" rows="8" required placeholder="Describe the routine for {{ pet.name }}."></textarea>
+          </div>
+          <button class="btn btn-primary" type="submit">Save new routine plan</button>
+          <a class="btn btn-ghost" href="{{ url_for('adopter.pet_profile', pet_id=pet.id, tab='diet') }}">Cancel</a>
+        </form>
+        <hr>
+      {% endif %}
+      {% for plan in care_plans.routine_plans %}
+        <div class="card card-muted mb-4">
+          <h4 class="mb-2">{{ plan.get('name') or 'Routine plan' }}</h4>
+          <p class="mb-0" style="white-space: pre-line;">{{ plan.get('details', '') }}</p>
+        </div>
+      {% endfor %}
+      {% if edit_routine %}
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="section" value="routine_plan">
+          <div class="field">
+            <label for="routine-plan">Daily routine</label>
+            <textarea id="routine-plan" class="textarea" name="routine_plan" maxlength="4000" rows="8" placeholder="Example: Take Mochi for a walk by 5 pm each evening.">{{ care_plans.routine_plan }}</textarea>
+          </div>
+          <button class="btn btn-primary" type="submit">Save routine plan</button>
+          <a class="btn btn-ghost" href="{{ url_for('adopter.pet_profile', pet_id=pet.id, tab='diet') }}">Cancel</a>
+        </form>
+      {% elif care_plans.routine_plan %}
+        <p class="mb-0" style="white-space: pre-line;">{{ care_plans.routine_plan }}</p>
+      {% else %}
+        <p class="text-muted">No routine plan added yet.</p>
+      {% endif %}
+    </section>
+  </div>
+
+{% endif %}
+
+<script>
+  document.querySelectorAll('.card .pill').forEach(function (label) {
+    var input = label.querySelector('input[type="checkbox"]');
+    if (!input) return;
+    label.addEventListener('click', function () {
+      setTimeout(function () { label.classList.toggle('is-active', input.checked); }, 0);
+    });
+  });
+  var dietList = document.getElementById('diet-plan');
+  var addDietRow = document.getElementById('add-diet-row');
+  var newDietList = document.getElementById('new-diet-plan');
+  var addNewDietRow = document.getElementById('add-new-diet-row');
+  [[dietList, addDietRow], [newDietList, addNewDietRow]].forEach(function (controls) {
+    var list = controls[0];
+    var addButton = controls[1];
+    if (!list || !addButton) return;
+    addButton.addEventListener('click', function () {
+      var row = list.querySelector('.diet-row').cloneNode(true);
+      row.querySelectorAll('input').forEach(function (input) { input.value = ''; });
+      list.appendChild(row);
+    });
+    list.addEventListener('click', function (event) {
+      if (event.target.classList.contains('remove-diet-row') && list.children.length > 1) {
+        event.target.closest('.diet-row').remove();
+      }
+    });
+  });
+</script>
+{% endblock %}

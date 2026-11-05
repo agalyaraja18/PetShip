@@ -1,0 +1,29 @@
+{% extends 'layouts/admin.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Community moderation · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Community moderation{% endblock %}
+{% block page_subtitle %}{{ posts|length }} recent posts{% endblock %}
+{% block content %}
+<div class="stack">
+  {% for post in posts %}
+    <div class="card row spread">
+      <div>
+        <div class="fw-600">{{ post.author.full_name }} · {{ post.topic }}
+          {% if post.hidden %}{{ badge('Hidden', 'danger') }}{% endif %}</div>
+        <p class="text-sm text-muted mb-0">"{{ (post.title ~ ' — ' if post.title else '') ~ post.body[:100] }}"</p>
+      </div>
+      <form method="post" action="{{ url_for('admin_mod.community_action', post_id=post.id) }}" class="row">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if post.hidden %}
+          <button class="btn btn-outline btn-sm" name="action" value="keep" type="submit">Restore</button>
+        {% else %}
+          <button class="btn btn-outline btn-sm" name="action" value="keep" type="submit">Keep</button>
+          <button class="btn btn-danger btn-sm" name="action" value="hide" type="submit">Remove</button>
+        {% endif %}
+      </form>
+    </div>
+  {% else %}
+    <div class="card"><p class="text-muted mb-0">No posts to moderate.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{#  FAQ accordion grouped by category. Expects `grouped` (ordered dict). #}
+{% if grouped %}
+  {% for category, items in grouped.items() %}
+    <section class="faq-section">
+      <h3 class="faq-category">{{ category }}</h3>
+      {% for faq in items %}
+        <details class="faq-item">
+          <summary>{{ faq.question }}</summary>
+          <p class="text-muted">{{ faq.answer }}</p>
+        </details>
+      {% endfor %}
+    </section>
+  {% endfor %}
+{% else %}
+  <div class="card"><p class="text-muted mb-0">No help articles match &ldquo;{{ q }}&rdquo;. Try different words or <a href="{{ url_for('content.contact') }}">contact support</a>.</p></div>
+{% endif %}

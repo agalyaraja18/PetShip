@@ -1,0 +1,62 @@
+# ============================================================================
+# PetShip - production stack (app + PostgreSQL + Redis)
+# Usage: docker compose -f docker-compose.prod.yml up --build -d
+#
+# Provide secrets via a .env file or the host environment:
+#   SECRET_KEY, (optional) GEMINI_API_KEY, FIREBASE_*, RESEND_API_KEY,
+#   GOOGLE_CLIENT_ID/SECRET.
+# ============================================================================
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-petship}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-petship}
+      POSTGRES_DB: ${POSTGRES_DB:-petship}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-petship}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      FLASK_CONFIG: production
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required in production}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-petship}:${POSTGRES_PASSWORD:-petship}@db:5432/${POSTGRES_DB:-petship}
+      REDIS_URL: redis://redis:6379/0
+      SOCKETIO_ASYNC_MODE: eventlet
+      PREFERRED_URL_SCHEME: https
+      # The scheduler runs on this single web instance (safe for one replica).
+      SCHEDULER_ENABLED: "true"
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-console}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      FIREBASE_CREDENTIALS_FILE: ${FIREBASE_CREDENTIALS_FILE:-}
+      FIREBASE_STORAGE_BUCKET: ${FIREBASE_STORAGE_BUCKET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -1,0 +1,18 @@
+{% extends 'layouts/adopter.html' %}
+{% set active_nav = 'dashboard' %}
+{% from 'partials/macros.html' import stat_card %}
+{% block title %}Dashboard · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Good day, {{ user.first_name or 'friend' }}{% endblock %}
+{% block page_subtitle %}Here's what's happening with your pets today.{% endblock %}
+{% block content %}
+<div class="grid grid-4 mb-5">
+  {{ stat_card('My pets', '0') }}
+  {{ stat_card('Applications', '0') }}
+  {{ stat_card('Upcoming visits', '0') }}
+  {{ stat_card('Monthly spend', '₹0') }}
+</div>
+<div class="card">
+  <p class="mb-0">You're logged in as an <strong>Adopter</strong>. The full dashboard arrives in Phase 5.</p>
+  <a class="btn btn-ghost mt-4" href="{{ url_for('auth.logout') }}">Log out</a>
+</div>
+{% endblock %}

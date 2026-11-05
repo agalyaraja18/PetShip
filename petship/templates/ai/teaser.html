@@ -1,0 +1,46 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag %}
+{% block title %}AI pet matching · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ai.css') }}">
+{% endblock %}
+{% block content %}
+<section class="ai-teaser">
+  <div>
+    {{ tag('AI-powered matching') }}
+    <h1 class="ai-teaser-title">Let our AI find the pet <span class="text-primary">that fits your life</span></h1>
+    <p class="text-muted text-lg">Answer 10 quick questions about your home, routine, and what you're looking for. We'll match you with pets whose needs and personality suit you.</p>
+    <div class="row row-wrap mt-4">
+      <a class="btn btn-primary btn-lg" href="{{ url_for('ai.quiz', step=1) }}">Take the compatibility quiz</a>
+      <a class="btn btn-outline btn-lg" href="{{ url_for('pets.browse') }}">Browse instead</a>
+    </div>
+    <div class="ai-steps mt-5">
+      <div class="ai-step"><span class="ai-step-num">1</span><div><div class="fw-600">Tell us about you</div><div class="text-sm text-muted">Home, schedule, family, budget.</div></div></div>
+      <div class="ai-step"><span class="ai-step-num">2</span><div><div class="fw-600">AI analyses fit</div><div class="text-sm text-muted">Energy, size, temperament, care needs.</div></div></div>
+      <div class="ai-step"><span class="ai-step-num">3</span><div><div class="fw-600">Meet your matches</div><div class="text-sm text-muted">Ranked pets with reasons why.</div></div></div>
+    </div>
+  </div>
+
+  {# Hero art: two floating pet photo cards #}
+  <div class="ai-teaser-art">
+    {% for idx in [0, 1] %}
+      {% set pet = hero_pets[idx] if hero_pets|length > idx else none %}
+      <a class="ai-card-float {{ 'a' if idx == 0 else 'b' }}"
+         href="{{ url_for('pets.browse') }}"
+         aria-label="{{ pet.name if pet else 'Browse pets' }}">
+        {% if pet %}
+          <img class="ai-card-img" src="{{ pet.photo }}" alt="{{ pet.name }}">
+          <div class="ai-card-label">
+            <span class="fw-600">{{ pet.name }}</span>
+            <span class="text-xs">{{ pet.species|title }}</span>
+          </div>
+        {% else %}
+          {% set fallback = 'milo.jpg' if idx == 0 else 'mochi.jpg' %}
+          <img class="ai-card-img" src="{{ url_for('static', filename='img/pets/' ~ fallback) }}"
+               alt="{{ pet.name if pet else ('A dog looking for a home' if idx == 0 else 'A cat looking for a home') }}">
+        {% endif %}
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends 'layouts/public.html' %}
+{% block title %}Terms & Conditions · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/errors.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="row spread">
+  <div>
+    <h1>Terms &amp; Conditions</h1>
+    <p class="text-muted">{{ effective }}</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('legal.terms_pdf') }}">Download PDF</a>
+</div>
+
+<div class="legal-cards mt-4">
+  <div class="card">
+    <div class="fw-600 text-primary">No pet sales</div>
+    <p class="text-sm text-muted mb-0">PetShip is for adoption only. Commercial selling is prohibited.</p>
+  </div>
+  <div class="card">
+    <div class="fw-600 text-primary">Be truthful</div>
+    <p class="text-sm text-muted mb-0">Applications and listings must be accurate.</p>
+  </div>
+  <div class="card">
+    <div class="fw-600 text-primary">Be kind</div>
+    <p class="text-sm text-muted mb-0">Respect people and animals in every interaction.</p>
+  </div>
+</div>
+
+<div class="legal-layout">
+  <nav class="legal-toc card" aria-label="Sections">
+    <div class="fw-600 mb-4">Sections</div>
+    <ol>
+      {% for anchor, heading, _ in sections %}
+        <li><a href="#{{ anchor }}">{{ heading[3:] }}</a></li>
+      {% endfor %}
+    </ol>
+  </nav>
+  <div class="legal-body">
+    {% for anchor, heading, body in sections %}
+      <section id="{{ anchor }}">
+        <h2>{{ heading }}</h2>
+        <p>{{ body }}</p>
+      </section>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

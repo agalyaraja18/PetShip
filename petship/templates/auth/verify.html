@@ -1,0 +1,60 @@
+{% extends 'auth/_auth_base.html' %}
+{% block title %}Verify your email · {{ APP_NAME }}{% endblock %}
+
+{% block visual %}
+  <div class="auth-quote">
+    <p>Almost there.</p>
+    <div class="cite">Confirm your email to continue.</div>
+  </div>
+{% endblock %}
+
+{% block panel %}
+<div class="auth-icon">✉️</div>
+<h1>Check your inbox</h1>
+<p class="text-muted">We sent a 6-digit code to <strong>{{ email }}</strong>. Enter it below to verify your account.</p>
+{% if public_id %}
+  <div class="card card-muted mb-4">Your PetShip user ID is <strong>{{ public_id }}</strong>. Use it with your password to log in.</div>
+{% endif %}
+
+<form method="post" x-data="codeInput()">
+  {{ form.hidden_tag() }}
+  <div class="code-boxes" @input="sync()">
+    {% for i in range(6) %}
+      <input class="code-box" maxlength="1" inputmode="numeric" pattern="[0-9]"
+             x-ref="d{{ i }}" @input="advance({{ i }}, $event)" @keydown.backspace="back({{ i }}, $event)">
+    {% endfor %}
+  </div>
+  {# Hidden field holds the assembled code submitted to the server. #}
+  <input type="hidden" name="{{ form.code.name }}" id="{{ form.code.id }}" x-ref="code">
+  {% for error in form.code.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+
+  <button type="submit" class="btn btn-primary btn-block btn-lg mt-4">Verify email</button>
+</form>
+
+<div class="auth-foot">
+  Didn't get it?
+  <form method="post" action="{{ url_for('auth.resend_code') }}" style="display:inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-ghost btn-sm">Resend code</button>
+  </form>
+</div>
+
+<script>
+function codeInput() {
+  return {
+    sync() {
+      let v = '';
+      for (let i = 0; i < 6; i++) { v += (this.$refs['d'+i].value || ''); }
+      this.$refs.code.value = v;
+    },
+    advance(i, e) {
+      if (e.target.value && i < 5) { this.$refs['d'+(i+1)].focus(); }
+      this.sync();
+    },
+    back(i, e) {
+      if (!e.target.value && i > 0) { this.$refs['d'+(i-1)].focus(); }
+    }
+  };
+}
+</script>
+{% endblock %}

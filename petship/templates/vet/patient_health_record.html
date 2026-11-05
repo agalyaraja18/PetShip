@@ -1,0 +1,199 @@
+{% extends 'layouts/vet.html' %}
+{% block title %}{{ pet.name }} · {{ pet.public_pet_id }} · Health record{% endblock %}
+{% block page_title %}{{ pet.name }} · {{ pet.public_pet_id }}{% endblock %}
+{% block page_subtitle %}Pet health record{% endblock %}
+{% block content %}
+<div class="patient-health-layout">
+  <section class="card pet-overview-card">
+    <div class="pet-overview-head">
+      {% if pet.photo_url %}
+        <img class="avatar avatar-lg" src="{{ pet.photo_url }}" alt="{{ pet.name }}">
+      {% else %}
+        <div class="avatar avatar-lg profile-initials">{{ pet.name[0] | upper }}</div>
+      {% endif %}
+      <div>
+        <h2 class="mb-1">{{ pet.name }} · {{ pet.public_pet_id }}</h2>
+        <div class="text-sm text-muted">
+          {{ pet.species or 'Pet' }}{% if pet.breed %} · {{ pet.breed }}{% endif %}
+          {% if pet.sex %} · {{ pet.sex }}{% endif %}{% if pet.age_text %} · {{ pet.age_text }}{% endif %}
+        </div>
+        {% if pet.weight_kg %}<div class="text-sm text-muted">{{ pet.weight_kg }} kg</div>{% endif %}
+        {% if pet.diet_note %}<div class="text-sm mt-2"><strong>Food and diet:</strong> {{ pet.diet_note }}</div>{% endif %}
+      </div>
+    </div>
+    <div class="owner-details">
+      <h3>Owner details</h3>
+      {% if pet.owner %}
+        <div>{{ pet.owner.full_name }}</div>
+        <div class="text-sm text-muted">{{ pet.owner.email }}</div>
+        {% if pet.owner.phone %}<div class="text-sm text-muted">{{ pet.owner.phone }}</div>{% endif %}
+      {% else %}
+        <div class="text-sm text-muted">Owner unavailable</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card health-actions-card">
+    <h3>Today's schedule</h3>
+    <h3>Today's health actions</h3>
+    {% for reminder in today_reminders %}
+      <div class="health-list-row"><strong>{{ reminder.title }}</strong><span>{{ reminder.at_time.strftime('%I:%M %p') if reminder.at_time else 'Today' }}</span></div>
+    {% endfor %}
+    {% for plan in today_plans %}
+      <div class="health-list-row"><strong>{{ plan.title }}</strong><span>Next visit today</span></div>
+    {% endfor %}
+    <details>
+      <summary>Create today's health record</summary>
+      <form method="post" action="{{ url_for('vet_workspace.add_today_health_record', pet_id=pet.id) }}" class="health-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Visit type
+          <select class="select" name="visit_type">
+            <option>General check-up</option><option>Vaccination</option><option>Dental care</option>
+            <option>Surgery</option><option>Lab test</option><option>Referral</option>
+          </select>
+        </label>
+        <label>General check-up and instructions<textarea class="textarea" name="findings" rows="4" required></textarea></label>
+        <label>Diagnosis<input class="input" name="diagnosis"></label>
+        <label>Suggestions<textarea class="textarea" name="suggestions" rows="3"></textarea></label>
+        <button class="btn btn-primary" type="submit">Save & share with owner</button>
+      </form>
+    </details>
+    <details>
+      <summary>Book a new visit</summary>
+      <form method="post" action="{{ url_for('vet_workspace.book_patient_visit', pet_id=pet.id) }}" class="health-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Visit type<select class="select" name="visit_type"><option>Vaccination</option><option>Surgery</option><option>Lab test</option><option>General check-up</option><option>Dental care</option><option>Referral visit</option></select></label>
+        <label>Date<input class="input" type="date" name="visit_date" min="{{ today_iso }}" required></label>
+        <label>Time<input class="input" type="time" name="visit_time" required></label>
+        <div class="row row-wrap"><button class="btn btn-primary" type="submit">Save & share with owner</button><button class="btn btn-ghost" type="reset">Cancel</button></div>
+      </form>
+    </details>
+    <details>
+      <summary>Surgery booking</summary>
+      <form method="post" action="{{ url_for('vet_workspace.book_patient_surgery', pet_id=pet.id) }}" class="health-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Surgery title<input class="input" name="title" required></label>
+        <label>Date<input class="input" type="date" name="surgery_date" min="{{ today_iso }}" required></label>
+        <label>Time<input class="input" type="time" name="surgery_time" required></label>
+        <div class="row row-wrap"><button class="btn btn-primary" type="submit">Save & share with owner</button><button class="btn btn-ghost" type="reset">Cancel</button></div>
+      </form>
+    </details>
+    <details>
+      <summary>Lab reports</summary>
+      <form method="post" action="{{ url_for('vet_workspace.add_patient_lab_report', pet_id=pet.id) }}" enctype="multipart/form-data" class="health-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Lab test title<input class="input" name="title" required></label>
+        <label>Lab report<input class="input" type="file" name="lab_report" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp" required></label>
+        <div class="row row-wrap"><button class="btn btn-primary" type="submit">Save & share with owner</button><button class="btn btn-ghost" type="reset">Cancel</button></div>
+      </form>
+    </details>
+    <details>
+      <summary>Prescription & medications</summary>
+      <form method="post" action="{{ url_for('vet_workspace.add_patient_prescription', pet_id=pet.id) }}" class="health-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div id="prescription-medicine-list">
+          <label class="prescription-medicine-row">Tablet / medicine name<input class="input" name="medicine_name" required></label>
+        </div>
+        <button class="btn btn-outline btn-sm" type="button" id="add-another-prescription">Add another prescription</button>
+        <label>How many days to be taken<input class="input" type="number" name="days" min="1" max="365" required></label>
+        <fieldset><legend>Timing</legend><label><input type="checkbox" name="timing" value="Morning"> Morning</label><label><input type="checkbox" name="timing" value="Afternoon"> Afternoon</label><label><input type="checkbox" name="timing" value="Evening"> Evening</label><label><input type="checkbox" name="timing" value="Night"> Night</label></fieldset>
+        <div class="row row-wrap"><button class="btn btn-primary" type="submit">Save & share with owner</button><button class="btn btn-ghost" type="reset">Cancel</button></div>
+      </form>
+    </details>
+    <a class="btn btn-outline mt-3" href="{{ url_for('vet_workspace.new_health_plan', pet_id=pet.public_pet_id) }}">Schedule new plan</a>
+  </section>
+</div>
+
+<div class="health-record-grid">
+  <section class="card health-list-card appointment-card"><div class="health-list-head"><h3>Appointments - Upcoming schedule</h3></div>
+    {% for appointment in upcoming_appointments %}<div class="health-list-row"><strong>{{ appointment.service }}</strong><span>{{ appointment.scheduled_for.strftime('%d %b %Y, %I:%M %p') }}</span></div>{% else %}<div class="summary-empty">No upcoming appointments</div>{% endfor %}
+    {% for plan in plans %}<div class="health-list-row"><strong>{{ plan.title }}</strong><span>{{ plan.next_visit_on.strftime('%d %b %Y') }}</span></div>{% endfor %}
+    {% for reminder in upcoming_reminders %}<div class="health-list-row"><strong>{{ reminder.title }}</strong><span>{{ reminder.next_due.strftime('%d %b %Y') }}</span></div>{% endfor %}
+  </section>
+  <section class="card health-list-card"><div class="health-list-head"><h3>Past Vaccinations</h3></div>
+    {% for vaccination in vaccinations if vaccination.status.value == 'done' %}<div class="health-list-row"><strong>{{ vaccination.name }}</strong><span>{{ vaccination.last_given.strftime('%d %b %Y') if vaccination.last_given else 'Recorded' }}</span></div>{% else %}<div class="summary-empty">No past vaccinations</div>{% endfor %}
+  </section>
+  <section class="card health-list-card"><div class="health-list-head"><h3>Vaccinations - Upcoming</h3></div>
+    {% for vaccination in vaccinations if vaccination.status.value != 'done' %}<div class="health-list-row"><strong>{{ vaccination.name }}</strong><span>{{ vaccination.due_on.strftime('%d %b %Y') if vaccination.due_on else 'Due' }}</span></div>{% else %}<div class="summary-empty">No upcoming vaccinations</div>{% endfor %}
+  </section>
+  <section class="card health-list-card"><div class="health-list-head"><h3>Past prescribed medicines</h3></div>
+    {% for plan in past_prescription_plans %}<div class="health-list-row"><strong>{{ plan.prescribed_medicines }}</strong><span>{{ plan.prescription_end_on.strftime('%d %b %Y') }}</span></div>{% endfor %}
+    {% for record in past_prescriptions %}<div class="health-list-row"><strong>{{ record.title }}</strong><span>{{ record.record_date.strftime('%d %b %Y') }}</span></div>{% endfor %}
+    {% if not past_prescription_plans and not past_prescriptions %}<div class="summary-empty">No past prescribed medicines</div>{% endif %}
+  </section>
+  <section class="card health-list-card"><div class="health-list-head"><h3>Present health record · Present prescribed medicines</h3></div>
+    {% for plan in present_prescription_plans %}<div class="health-list-row"><strong>{{ plan.prescribed_medicines }}</strong><span>{{ plan.prescription_end_on.strftime('%d %b %Y') if plan.prescription_end_on else 'Current' }}</span></div>{% endfor %}
+    {% for record in present_prescription_records %}<div class="health-list-row"><strong>{{ record.title }}</strong><span>{{ record.record_date.strftime('%d %b %Y') }}</span></div>{% endfor %}
+    {% if not present_prescription_plans and not present_prescription_records %}<div class="summary-empty">No present prescribed medicines</div>{% endif %}
+  </section>
+  <section class="card health-list-card"><div class="health-list-head"><h3>Surgeries - Past</h3></div>
+    {% for record in past_records if record.record_type == RecordType.SURGERY %}<div class="health-list-row"><strong>{{ record.title }}</strong><span>{{ record.record_date.strftime('%d %b %Y') }}</span></div>{% else %}<div class="summary-empty">No past surgeries</div>{% endfor %}
+  </section>
+  <section class="card health-list-card"><div class="health-list-head"><h3>Surgeries - Upcoming</h3></div>
+    {% for record in records if record.record_type == RecordType.SURGERY and record.record_date > today %}<div class="health-list-row"><strong>{{ record.title }}</strong><span>{{ record.record_date.strftime('%d %b %Y') }}</span></div>{% else %}<div class="summary-empty">No upcoming surgeries</div>{% endfor %}
+  </section>
+  <section class="card health-list-card lab-list-card"><div class="health-list-head"><h3>Lab reports</h3></div>
+    {% for record in records if record.record_type == RecordType.LAB %}
+      <details class="lab-record-row">
+        <summary><strong>{{ record.title }}</strong><span class="btn btn-outline btn-sm">View</span></summary>
+        {% if record.attachments %}
+          {% for attachment in record.attachments or [] %}
+            {% if attachment.lower().endswith('.pdf') %}
+              <iframe class="lab-file-viewer" src="{{ attachment }}" title="{{ record.title }}"></iframe>
+              <a class="btn btn-outline btn-sm mb-3" href="{{ attachment }}" target="_blank" rel="noopener">Open {{ record.title }}</a>
+            {% else %}
+              <img src="{{ attachment }}" alt="{{ record.title }}">
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          <div class="lab-preview-placeholder">{{ record.title }}</div>
+          <a class="btn btn-outline btn-sm mb-3" href="{{ url_for('health.record_pdf', record_id=record.id) }}" target="_blank" rel="noopener">View report PDF</a>
+        {% endif %}
+      </details>
+    {% else %}<div class="summary-empty">No lab reports</div>{% endfor %}
+  </section>
+  <section class="card health-list-card medical-list-card"><div class="health-list-head"><h3>Past health records</h3></div>
+    {% for record in past_health_records %}<article class="health-list-row"><div><strong>{{ record.title }}</strong><div class="text-xs text-muted">{{ record.record_date.strftime('%d %b %Y') }} · {{ record.record_type.value|replace('_', ' ')|title }}</div></div><a class="btn btn-outline btn-sm" href="{{ url_for('vet_workspace.patient_health_record_detail', pet_id=pet.id, record_id=record.id) }}">View</a></article>{% else %}<div class="summary-empty">No past health records</div>{% endfor %}
+  </section>
+</div>
+
+<script>
+document.getElementById('add-another-prescription')?.addEventListener('click', function () {
+  const list = document.getElementById('prescription-medicine-list');
+  const row = document.createElement('label');
+  row.className = 'prescription-medicine-row';
+  row.innerHTML = 'Tablet / medicine name<input class="input" name="medicine_name" required>';
+  list.appendChild(row);
+});
+</script>
+
+<style>
+.patient-health-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(320px,380px); gap:var(--space-4); margin-bottom:var(--space-4); }
+.pet-overview-card { min-height:240px; }
+.pet-overview-head { display:flex; align-items:center; gap:var(--space-4); }
+.owner-details { margin-top:var(--space-4); border-top:1px solid var(--color-border); padding-top:var(--space-3); }
+.health-actions-card h3 { margin-top:0; }
+.health-actions-card details { border-top:1px solid var(--color-border); padding:var(--space-2) 0; }
+.health-actions-card summary { cursor:pointer; font-weight:700; min-height:38px; display:flex; align-items:center; }
+.health-form { display:grid; gap:var(--space-3); padding:var(--space-3) 0 var(--space-2); }
+.health-form label, .health-form fieldset { display:grid; gap:var(--space-2); font-size:.88rem; }
+.health-form fieldset { grid-template-columns:repeat(2,minmax(0,1fr)); border:0; padding:0; }
+.health-record-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--space-4); align-items:start; }
+.health-list-card { padding:var(--space-4); }
+.health-list-head { min-height:44px; display:flex; align-items:center; border-bottom:1px solid var(--color-border); }
+.health-list-head h3 { margin:0; font-size:1rem; }
+.health-list-row { min-height:48px; display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); border-bottom:1px solid var(--color-border); font-size:.88rem; }
+.health-list-row:last-child { border-bottom:0; }
+.summary-empty { color:var(--color-text-muted); padding-top:var(--space-3); font-size:.88rem; }
+.appointment-card, .lab-list-card, .medical-list-card { grid-column:1 / -1; }
+.prescription-medicine-row { margin-bottom:var(--space-2); }
+.lab-list-card, .medical-list-card { grid-column:1 / -1; }
+.lab-record-row { border-bottom:1px solid var(--color-border); }
+.lab-record-row summary { min-height:54px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; list-style:none; }
+.lab-record-row summary::-webkit-details-marker { display:none; }
+.lab-record-row img { width:100%; max-height:420px; object-fit:contain; padding-bottom:var(--space-3); }
+.lab-file-viewer { width:100%; height:420px; border:1px solid var(--color-border); border-radius:var(--radius-md); margin-bottom:var(--space-3); }
+.lab-preview-placeholder { min-height:220px; width:100%; display:flex; align-items:center; justify-content:center; margin-bottom:var(--space-3); border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-surface-muted); color:var(--color-text-muted); }
+@media(max-width:900px){ .patient-health-layout,.health-record-grid{grid-template-columns:1fr;} .lab-list-card,.medical-list-card{grid-column:auto;} }
+</style>
+{% endblock %}

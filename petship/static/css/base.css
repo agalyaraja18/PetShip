@@ -1,0 +1,177 @@
+/* ==========================================================================
+   PetShip design system — tokens, typography, reset
+   Colours and type per the brand spec. Everything downstream references the
+   CSS custom properties defined here.
+   ========================================================================== */
+
+/* ---- Self-hosted fonts ---- */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/inter-400.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/inter-500.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/poppins-500.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../fonts/poppins-600.ttf') format('truetype');
+}
+
+/* ---- Design tokens ---- */
+:root {
+  /* Brand palette */
+  --terracotta: #a85d43;
+  --warm-peach: #d99b7c;
+  --soft-ivory: #faf0e6;
+  --warm-beige: #e6d8c7;
+  --deep-espresso: #46352f;
+
+  /* Semantic colours */
+  --color-bg: var(--soft-ivory);
+  --color-surface: #ffffff;
+  --color-surface-muted: #fbf3ea;
+  --color-primary: var(--terracotta);
+  --color-primary-hover: #934f39;
+  --color-accent: var(--warm-peach);
+  --color-text: var(--deep-espresso);
+  --color-text-muted: #7a6a62;
+  --color-border: var(--warm-beige);
+  --color-success: #4f7a52;
+  --color-warning: #c97a2b;
+  --color-danger: #c0392b;
+  --color-info: #5a7fa3;
+
+  /* Dark shell (shelter/admin) */
+  --dark-sidebar-bg: var(--deep-espresso);
+  --dark-sidebar-text: #e7ddd4;
+  --dark-sidebar-muted: #b3a79e;
+  --dark-sidebar-active: var(--terracotta);
+
+  /* Typography */
+  --font-heading: 'Poppins', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-button: 'Poppins', system-ui, sans-serif;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(70, 53, 47, 0.06);
+  --shadow-md: 0 6px 20px rgba(70, 53, 47, 0.08);
+  --shadow-lg: 0 16px 40px rgba(70, 53, 47, 0.12);
+
+  /* Layout */
+  --sidebar-width: 232px;
+  --topbar-height: 68px;
+  --content-max: 1200px;
+}
+
+/* ---- Reset ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 400;
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.55;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0 0 var(--space-3);
+  color: var(--color-text);
+}
+
+h1 { font-size: 2.4rem; }
+h2 { font-size: 1.8rem; }
+h3 { font-size: 1.35rem; }
+h4 { font-size: 1.1rem; }
+
+p { margin: 0 0 var(--space-3); }
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+img { max-width: 100%; display: block; }
+
+:focus-visible {
+  outline: 3px solid var(--warm-peach);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Accessible visually-hidden utility */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+}
+
+/* Accessibility: skip-to-content link, visible on focus */
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  z-index: 1000;
+  background: var(--color-primary);
+  color: #fff;
+  padding: 0.6rem 1rem;
+  border-radius: 0 0 var(--radius-md) 0;
+}
+.skip-link:focus { left: 0; text-decoration: none; }

@@ -1,0 +1,22 @@
+{% extends 'errors/_error_base.html' %}
+{% block title %}500 · Something went wrong · {{ APP_NAME }}{% endblock %}
+{% block code %}500{% endblock %}
+{% block headline %}Someone chewed the cables{% endblock %}
+{% block copy %}Something went wrong on our side. Our team has been notified and is fixing it. Please try again in a moment.{% endblock %}
+{% block actions %}
+  <a class="btn btn-primary" href="{{ url_for('pets.home') }}">Try again</a>
+  <a class="btn btn-outline" href="{{ url_for('content.contact') }}">Contact support</a>
+{% endblock %}
+{% block ref %}
+  <p class="error-ref">Error reference: {{ error_ref | default('PS-500-7F3A') }}</p>
+{% endblock %}
+{% block art_bg %}#e8b923{% endblock %}
+{% block art %}
+<svg width="70%" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+  <circle cx="50" cy="46" r="26" fill="#46352F"/>
+  <circle cx="40" cy="42" r="5" fill="#e8b923"/><circle cx="60" cy="42" r="5" fill="#e8b923"/>
+  <circle cx="50" cy="54" r="4" fill="#A85D43"/>
+  <ellipse cx="28" cy="34" rx="8" ry="12" fill="#46352F"/>
+  <ellipse cx="72" cy="34" rx="8" ry="12" fill="#46352F"/>
+</svg>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends 'layouts/admin.html' %}
+{% block title %}Shelter verification · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Shelter verification{% endblock %}
+{% block page_subtitle %}{{ pending|length }} {{ 'approved' if selected_view == 'approved' else 'shelters' }}{% endblock %}
+{% block content %}
+<nav class="row row-wrap mb-4" aria-label="Shelter verification categories">
+  <a class="btn {{ 'btn-primary' if selected_view == 'all' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_shelters', view='all') }}">All</a>
+  <a class="btn {{ 'btn-primary' if selected_view == 'visit' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_shelters', view='visit') }}">Shelter Visit</a>
+  <a class="btn {{ 'btn-primary' if selected_view == 'approved' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_shelters', view='approved') }}">Approved Shelter</a>
+</nav>
+<div class="grid grid-3">
+  {% for s in pending %}
+    <div class="card">
+      {% if s.is_verified %}<span class="badge badge-success">Approved</span>{% endif %}
+      <div class="shelter-logo">{{ s.name[:2]|upper }}</div>
+      <h3 class="mt-4 mb-0">{{ s.name }}</h3>
+      <p class="text-sm text-muted">{{ s.city or '' }}{% if s.registration_no %} · {{ s.registration_no }}{% endif %}</p>
+      <div class="text-sm text-muted">Contact: {{ s.contact_name or '—' }} · Capacity: {{ s.capacity or '—' }}</div>
+      <div class="stack mt-4">
+        <div class="text-sm">Owner: {{ s.owner.full_name if s.owner else '—' }} · Phone: {{ s.owner.phone if s.owner else '—' }}</div>
+        <div class="text-sm">Address: {{ s.address or '—' }} · Email: {{ s.owner.email if s.owner else '—' }}</div>
+        <div class="row row-wrap">
+          {% for photo in s.registration_photos or [] %}
+            <a href="{{ photo }}" target="_blank" rel="noopener">
+              <img src="{{ photo }}" alt="Shelter registration photo" style="width: 96px; height: 72px; object-fit: cover; border-radius: 8px;">
+            </a>
+          {% endfor %}
+        </div>
+        {% if s.verification_visit_at %}
+          <div class="text-sm">
+            Visit scheduled: {{ s.verification_visit_at.strftime('%d %b %Y at %I:%M %p') }}
+            {{ 'UTC' if s.verification_visit_time_is_utc else '(previously scheduled in local time)' }}
+            {% if s.verification_visit_completed_at %} · In-person visit completed{% endif %}
+          </div>
+        {% endif %}
+      </div>
+      {% if not s.is_verified %}
+      <form method="post" action="{{ url_for('admin.verify_shelter', shelter_id=s.id) }}" class="stack mt-4 shelter-verification-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="browser_timezone" class="browser-timezone">
+        {% if s.owner and s.owner.registration_status == 'pending' %}
+          {% if not s.verification_visit_completed_at %}
+            <p class="text-sm text-muted mb-0">After the scheduled visit, select Approve shelter to record the visit as complete and approve the application. Approval is blocked until the scheduled time has passed.</p>
+          {% endif %}
+          <div class="field mb-0">
+            <label for="visit-{{ s.id }}">Schedule in-person shelter visit (your local time)</label>
+            <input id="visit-{{ s.id }}" class="input" type="datetime-local" name="scheduled_for_local">
+            <input type="hidden" name="scheduled_for_utc">
+          </div>
+          <button class="btn btn-outline btn-sm" name="decision" value="schedule_visit" type="submit">Schedule visit</button>
+          {% if s.verification_visit_at and not s.verification_visit_completed_at %}
+            <button class="btn btn-outline btn-sm" name="decision" value="visit_completed" type="submit">Mark visit completed</button>
+          {% endif %}
+        {% endif %}
+        <div class="row row-wrap">
+          <button class="btn btn-outline btn-sm" name="decision" value="reject" type="submit">Reject</button>
+          <button class="btn btn-primary btn-sm" name="decision" value="approve" type="submit">Approve shelter</button>
+        </div>
+      </form>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="card"><p class="text-muted mb-0">No shelters in this category.</p></div>
+  {% endfor %}
+</div>
+<script>
+  document.querySelectorAll('.shelter-verification-form').forEach(function (form) {
+    var timezoneInput = form.querySelector('.browser-timezone');
+    var localTimeInput = form.querySelector('[name="scheduled_for_local"]');
+    var utcTimeInput = form.querySelector('[name="scheduled_for_utc"]');
+    var scheduleButton = form.querySelector('[name="decision"][value="schedule_visit"]');
+
+    timezoneInput.value = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    if (scheduleButton) {
+      scheduleButton.addEventListener('click', function () {
+        if (localTimeInput.value) {
+          utcTimeInput.value = new Date(localTimeInput.value).toISOString();
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

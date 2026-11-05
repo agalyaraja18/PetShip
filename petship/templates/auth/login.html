@@ -1,0 +1,50 @@
+{% extends 'auth/_auth_base.html' %}
+{% from 'partials/macros.html' import field %}
+{% block title %}Log in · {{ APP_NAME }}{% endblock %}
+
+{% block visual %}
+  <div class="auth-quote">
+    <p>&ldquo;Petship made adopting Mochi feel safe and simple. She's family now.&rdquo;</p>
+    <div class="cite">Priya, adopted in 2026</div>
+  </div>
+{% endblock %}
+
+{% block panel %}
+<h1>Welcome back</h1>
+<p class="text-muted">Log in to continue your pet journey.</p>
+
+<form method="post" x-data="{ role: '{{ role_hint }}' }">
+  {{ form.hidden_tag() }}
+
+  <div class="role-toggle role-toggle-login">
+    {% for value, label in form.role.choices %}
+      <label :class="{ 'is-selected': role === '{{ value }}' }" @click="role = '{{ value }}'">
+        <input type="radio" name="{{ form.role.name }}" value="{{ value }}"
+               x-model="role" required {{ 'checked' if form.role.data == value }}>
+        {{ label }}
+      </label>
+    {% endfor %}
+  </div>
+  {% for error in form.role.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+
+  {{ field(form.email, hint='Use your role-specific user ID or email address.') }}
+  {{ field(form.password) }}
+
+  <div class="row spread mb-4">
+    <label class="row" style="gap: 6px; font-weight: 400;">
+      {{ form.remember() }} <span>Remember me</span>
+    </label>
+    <a href="{{ url_for('auth.forgot_password') }}" class="text-primary text-sm">Forgot password?</a>
+  </div>
+
+  <button type="submit" class="btn btn-primary btn-block btn-lg">Log in</button>
+</form>
+
+{% if google_enabled %}
+  <a class="btn btn-outline btn-block mt-4" href="{{ url_for('auth.google_login') }}">Continue with Google</a>
+{% endif %}
+
+<p class="auth-foot text-center">
+  New to PetShip? <a href="{{ url_for('auth.register') }}">Create an account</a>
+</p>
+{% endblock %}

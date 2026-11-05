@@ -1,0 +1,46 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Favourite pets · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pets.css') }}">
+{% endblock %}
+{% block page_title %}Favourite pets{% endblock %}
+{% block page_subtitle %}{{ pets|length }} pets saved · we'll notify you if their status changes{% endblock %}
+{% block content %}
+{% if pets %}
+<div class="grid grid-4 pet-grid">
+  {% for pet in pets %}
+    <article class="pet-card">
+      <a class="pet-card-media" href="{{ url_for('pets.detail', pet_id=pet.id) }}">
+        {% if pet.primary_photo %}
+          <img src="{{ pet.primary_photo }}" alt="{{ pet.name }}">
+        {% else %}
+          <div class="pet-card-placeholder" data-species="{{ pet.species.value }}"><span>{{ pet.name[0] }}</span></div>
+        {% endif %}
+      </a>
+      <span class="fav-status-badge">{{ badge(pet.status.label, pet.status.badge_variant) }}</span>
+      {% with is_fav = True %}{% include 'pets/_fav_button.html' %}{% endwith %}
+      <div class="pet-card-body">
+        <h3 class="mb-0"><a href="{{ url_for('pets.detail', pet_id=pet.id) }}">{{ pet.name }}</a></h3>
+        <p class="text-sm text-muted">
+          {{ pet.breed or pet.species.label }} · {{ pet.age_text }}
+          {%- if pet.distance_km %} · {{ pet.distance_km|int }} km{% endif %}
+        </p>
+        {% if pet.status == PetStatus.AVAILABLE %}
+          <a class="btn btn-primary btn-sm btn-block" href="{{ url_for('pets.detail', pet_id=pet.id) }}">Adopt</a>
+        {% elif pet.status == PetStatus.RESERVED %}
+          <a class="btn btn-outline btn-sm btn-block" href="{{ url_for('pets.detail', pet_id=pet.id) }}">View status</a>
+        {% else %}
+          <button class="btn btn-outline btn-sm btn-block" type="button">Notify me</button>
+        {% endif %}
+      </div>
+    </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card text-center">
+  <p class="text-muted">No favourites yet. Tap the heart on any pet to save it here.</p>
+  <a class="btn btn-primary" href="{{ url_for('pets.browse') }}">Browse pets</a>
+</div>
+{% endif %}
+{% endblock %}

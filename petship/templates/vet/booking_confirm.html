@@ -1,0 +1,31 @@
+{% extends 'layouts/public.html' %}
+{% block title %}Booking confirmed · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/vet.css') }}">
+{% endblock %}
+{% block content %}
+<div class="booking-confirm card">
+  <div class="confirm-check">✓</div>
+  <h1>You're booked!</h1>
+  <p class="text-muted">We've sent the details to {{ current_user.email }} and added a reminder.</p>
+
+  <div class="card card-muted confirm-summary">
+    <div class="grid grid-2">
+      <div><div class="text-sm text-muted">Pet</div><div class="fw-600">{{ appt.note or 'Your pet' }}</div></div>
+      <div><div class="text-sm text-muted">Service</div><div class="fw-600">{{ appt.service }}</div></div>
+      <div><div class="text-sm text-muted">Date &amp; time</div><div class="fw-600">{{ appt.scheduled_for.strftime('%a %d %b, %H:%M') }}</div></div>
+      <div><div class="text-sm text-muted">Vet</div><div class="fw-600">{{ appt.vet.full_name if appt.vet else '' }}</div></div>
+      <div><div class="text-sm text-muted">Clinic</div><div class="fw-600">{{ appt.location }}</div></div>
+      <div><div class="text-sm text-muted">Total</div><div class="fw-600">₹{{ appt.price|int if appt.price else 0 }} (pay at clinic)</div></div>
+    </div>
+  </div>
+
+  <p class="text-sm text-muted">Booking reference <strong>{{ appt.reference }}</strong></p>
+
+  <div class="row row-wrap" style="justify-content: center;">
+    <a class="btn btn-primary" href="{{ url_for('adopter.appointments') }}">My appointments</a>
+    <a class="btn btn-outline" href="{{ url_for('vet.directory') }}">Book another</a>
+    <a class="btn btn-outline" href="{{ url_for('pets.home') }}">Done</a>
+  </div>
+</div>
+{% endblock %}

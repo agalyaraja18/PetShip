@@ -1,0 +1,57 @@
+{% extends 'layouts/public.html' %}
+{% block title %}{{ 'Edit post' if post else 'Share with the community' }} · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/community.css') }}">
+{% endblock %}
+{% block content %}
+<div class="create-layout">
+  <form method="post" enctype="multipart/form-data" class="card"
+        action="{{ url_for('community.edit', post_id=post.id) if post else url_for('community.create') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h1>{{ 'Edit your post' if post else 'Share with the community' }}</h1>
+
+    <div class="field"><label>Title</label>
+      <input class="input" name="title" value="{{ post.title if post else '' }}" placeholder="Give your post a title"></div>
+
+    <div class="field"><label>Topic</label>
+      <div class="row row-wrap" x-data="{ topic: '{{ post.topic if post else 'Show & tell' }}' }">
+        {% for t in topics %}
+          <label class="pill" :class="{ 'is-active': topic === '{{ t }}' }" @click="topic = '{{ t }}'">
+            <input type="radio" name="topic" value="{{ t }}" x-model="topic" hidden>{{ t }}</label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="field"><label>Your post</label>
+      <textarea class="textarea" name="body" placeholder="What's on your mind? Share a story, a question, or a tip..." required>{{ post.body if post else '' }}</textarea></div>
+
+    {% if not post %}
+      <label class="upload-drop">
+        <span class="text-primary fw-600">+ Add photos</span>
+        <span class="text-sm text-muted">Drag images here, up to 6</span>
+        <input type="file" name="photos" accept="image/*" multiple hidden>
+      </label>
+    {% endif %}
+
+    <div class="row spread mt-5">
+      {% if post %}
+        <button class="btn btn-danger btn-sm" name="action" value="delete" type="submit">Delete post</button>
+      {% else %}<span></span>{% endif %}
+      <button class="btn btn-primary" type="submit">{{ 'Save changes' if post else 'Publish post' }}</button>
+    </div>
+  </form>
+
+  <aside class="card card-muted">
+    <div class="fw-600">Posting tips</div>
+    <ul class="text-sm text-muted">
+      <li>Be kind and supportive</li>
+      <li>For health worries, tag Health &amp; vet so verified vets can reply</li>
+      <li>No selling or buying animals</li>
+    </ul>
+    <div class="card mt-4">
+      <div class="fw-600">Posting as {{ current_user.full_name }}</div>
+      <div class="text-sm text-muted">Visible to all PetShip members</div>
+    </div>
+  </aside>
+</div>
+{% endblock %}

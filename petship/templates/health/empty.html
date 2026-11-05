@@ -1,0 +1,10 @@
+{% extends 'layouts/adopter.html' %}
+{% block title %}Health · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Pet health{% endblock %}
+{% block page_subtitle %}{% endblock %}
+{% block content %}
+<div class="card text-center">
+  <p class="text-muted">You don't have any pets set up yet. Add a pet to start tracking health records and vaccinations.</p>
+  <a class="btn btn-primary" href="{{ url_for('pets.browse') }}">Adopt a pet</a>
+</div>
+{% endblock %}

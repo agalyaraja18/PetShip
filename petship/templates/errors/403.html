@@ -1,0 +1,20 @@
+{% extends 'errors/_error_base.html' %}
+{% block title %}403 · Access forbidden · {{ APP_NAME }}{% endblock %}
+{% block code %}403{% endblock %}
+{% block headline %}Members only, sorry!{% endblock %}
+{% block copy %}This area is reserved for a different account type. If you think you should have access, try logging in with the right role.{% endblock %}
+{% block actions %}
+  <a class="btn btn-primary" href="{{ url_for('auth.login') }}">Log in</a>
+  <a class="btn btn-outline" href="{{ url_for('pets.home') }}">Back to Home</a>
+{% endblock %}
+{% block art_bg %}#2f8fd6{% endblock %}
+{% block art %}
+<svg width="70%" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+  <ellipse cx="50" cy="46" rx="28" ry="24" fill="#E6D8C7"/>
+  <polygon points="26,30 38,18 40,34" fill="#E6D8C7"/>
+  <polygon points="74,30 62,18 60,34" fill="#E6D8C7"/>
+  <circle cx="40" cy="44" r="5" fill="#4f7a52"/><circle cx="60" cy="44" r="5" fill="#4f7a52"/>
+  <circle cx="40" cy="44" r="2" fill="#000"/><circle cx="60" cy="44" r="2" fill="#000"/>
+  <path d="M46 56 h8" stroke="#A85D43" stroke-width="3" stroke-linecap="round"/>
+</svg>
+{% endblock %}

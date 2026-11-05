@@ -1,0 +1,129 @@
+{% extends 'layouts/admin.html' %}
+{% from 'partials/macros.html' import stat_card, progress %}
+{% block title %}Platform analytics · {{ APP_NAME }}{% endblock %}
+{% block admin_head %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leaflet.css') }}">
+{% endblock %}
+{% block page_head %}
+  <div class="row spread row-wrap">
+    <h1 class="mb-0">Platform analytics</h1>
+    <div class="row">
+      {% for p in ['7d','30d','90d','1y'] %}
+        <a class="pill {{ 'is-active' if period == p }}" href="{{ url_for('admin.analytics', period=p) }}">{{ p }}</a>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}
+{% block content %}
+<div class="grid grid-4 mb-5">
+  {{ stat_card('Adopter registrations', '{:,}'.format(stats.adopters), period) }}
+  {{ stat_card('Shelter registrations', '{:,}'.format(stats.shelters), period) }}
+  {{ stat_card('Vet registrations', '{:,}'.format(stats.vets), period) }}
+  {{ stat_card('Adoption rate', stats.adoption_rate ~ '%', 'All-time completed / submitted applications') }}
+  {{ stat_card('Completed adoptions', '{:,}'.format(stats.adoptions), period) }}
+  {{ stat_card('Vet bookings', '{:,}'.format(stats.vet_bookings), period) }}
+  {{ stat_card('AI match usage', '{:,}'.format(stats.ai_matches), period) }}
+  {{ stat_card('Returned pets', '{:,}'.format(stats.pet_returns), 'Return events recorded in this period') }}
+  {{ stat_card('Return rate', stats.pet_return_rate ~ '%', 'All-time returned adoptions / completed adoptions') }}
+</div>
+
+<div class="card mb-5">
+  <h2 class="h3">Platform activity</h2>
+  <p class="text-sm text-muted">Registrations, completed adoptions, bookings, AI match usage, and recorded pet returns by period.</p>
+  <canvas id="platformActivityChart" height="120" aria-label="Platform activity analytics chart"></canvas>
+</div>
+
+<div class="card mb-5">
+  <h2 class="h3">Lost &amp; Found activity</h2>
+  <p class="text-sm text-muted">Lost and reunited report share for {{ period }}. Found reports are included with reunited reports; the two rates total 100%.</p>
+  <div class="grid grid-2 mb-4">
+    {{ stat_card('Lost rate', lost_found_rates.lost ~ '%', lost_found_rates.lost_count ~ ' reports') }}
+    {{ stat_card('Reunited rate', lost_found_rates.reunited ~ '%', lost_found_rates.reunited_count ~ ' reports (including found)') }}
+  </div>
+  <h3 class="h3">Report locations</h3>
+  {% if lost_found_map %}
+    <div id="admin-lostfound-map" class="lostfound-map" role="region" aria-label="Map of Lost and Found reports"></div>
+  {% else %}
+    <p class="text-muted mb-0">No Lost &amp; Found reports with map coordinates were recorded during this period. Reports without coordinates still count in the rates above.</p>
+  {% endif %}
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>Adoptions by species</h3>
+    {% set total = namespace(v=0) %}
+    {% for label, count in species_counts.items() %}{% set total.v = total.v + count %}{% endfor %}
+    {% for label, count in species_counts.items() %}
+      <div class="row spread text-sm mt-4"><span>{{ label }}</span><strong>{{ count }}</strong></div>
+      {{ progress((100 * count / total.v)|int if total.v else 0) }}
+    {% endfor %}
+  </div>
+  <div class="card">
+    <h3>Adoption funnel</h3>
+    {% set fmax = namespace(v=1) %}
+    {% for stage, n in funnel.items() %}{% if n > fmax.v %}{% set fmax.v = n %}{% endif %}{% endfor %}
+    {% for stage, n in funnel.items() %}
+      <div class="row spread text-sm mt-4"><span>{{ stage }}</span><strong>{{ n }}</strong></div>
+      {{ progress((100 * n / fmax.v)|int if fmax.v else 0) }}
+    {% endfor %}
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/vendor/chart.min.js') }}"></script>
+<script>
+  const platformLabels = {{ labels|tojson }};
+  const platformSeries = {{ chart_series|tojson }};
+  new Chart(document.getElementById('platformActivityChart'), {
+    type: 'line',
+    data: {
+      labels: platformLabels,
+      datasets: platformSeries.map(series => ({
+        label: series.label,
+        data: series.data,
+        borderColor: series.color,
+        backgroundColor: series.color + '22',
+        tension: 0.25,
+        fill: false
+      }))
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom' } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+    }
+  });
+</script>
+{% if lost_found_map %}
+<script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>
+<script>
+  const lostFoundReports = {{ lost_found_map|tojson }};
+  const lostFoundMap = L.map('admin-lostfound-map').setView([13.0067, 80.2570], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  }).addTo(lostFoundMap);
+  const lostFoundBounds = [];
+  lostFoundReports.forEach(report => {
+    const marker = L.circleMarker([report.lat, report.lng], {
+      radius: 8,
+      color: '#fff',
+      weight: 2,
+      fillColor: report.kind === 'lost' ? '#c0392b' : '#287a58',
+      fillOpacity: 0.9
+    }).addTo(lostFoundMap);
+    marker.bindPopup(
+      '<strong>' + (report.kind === 'lost' ? 'LOST' : 'REUNITED') + ': ' + L.Util.escapeHTML(report.name) +
+      '</strong><br>' + L.Util.escapeHTML(report.location) +
+      '<br>Status: ' + L.Util.escapeHTML(report.status)
+    );
+    lostFoundBounds.push([report.lat, report.lng]);
+  });
+  if (lostFoundBounds.length === 1) {
+    lostFoundMap.setView(lostFoundBounds[0], 13);
+  } else if (lostFoundBounds.length > 1) {
+    lostFoundMap.fitBounds(lostFoundBounds, { padding: [24, 24] });
+  }
+</script>
+{% endif %}
+{% endblock %}

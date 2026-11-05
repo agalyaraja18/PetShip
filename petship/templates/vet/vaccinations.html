@@ -1,0 +1,44 @@
+{% extends 'layouts/vet.html' %}
+{% from 'partials/macros.html' import stat_card, badge %}
+{% block title %}Vaccinations · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Vaccinations{% endblock %}
+{% block page_subtitle %}{{ total }} vaccination records across patients{% endblock %}
+{% block content %}
+<div class="grid grid-4 mb-5">
+  {{ stat_card('Overdue', overdue|length) }}
+  {{ stat_card('Due soon', due_soon|length) }}
+  {{ stat_card('Upcoming', upcoming|length) }}
+  {{ stat_card('Up to date', done|length) }}
+</div>
+
+{% macro vacc_table(title, items, variant) %}
+  {% if items %}
+    <div class="card mb-4">
+      <h3>{{ title }}</h3>
+      <table class="data-table">
+        <thead><tr><th>Pet</th><th>Vaccine</th><th>Last given</th><th>Due</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for v in items %}
+            <tr>
+              <td class="fw-600">{{ v.pet.name }}</td>
+              <td>{{ v.name }}{% if v.kind %} <span class="text-sm text-muted">({{ v.kind }})</span>{% endif %}</td>
+              <td>{{ v.last_given.strftime('%d %b %Y') if v.last_given else '—' }}</td>
+              <td>{{ v.due_on.strftime('%d %b %Y') if v.due_on else '—' }}</td>
+              <td>{{ badge(v.status.label, v.status.badge_variant) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+{% endmacro %}
+
+{{ vacc_table('Overdue — needs attention', overdue, 'danger') }}
+{{ vacc_table('Due soon', due_soon, 'warning') }}
+{{ vacc_table('Upcoming', upcoming, 'info') }}
+{{ vacc_table('Up to date', done, 'success') }}
+
+{% if not total %}
+  <div class="card"><p class="text-muted mb-0">No vaccination records yet.</p></div>
+{% endif %}
+{% endblock %}

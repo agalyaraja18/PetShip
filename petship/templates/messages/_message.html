@@ -1,0 +1,5 @@
+{#  A single chat message bubble. Expects `m` and `mine`. #}
+<div class="msg-bubble {{ 'mine' if mine else 'theirs' }}">
+  <p class="mb-0">{{ m.body }}</p>
+  <span class="msg-time">{{ m.created_at.strftime('%H:%M') }}</span>
+</div>

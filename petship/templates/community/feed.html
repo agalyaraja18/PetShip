@@ -1,0 +1,73 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag %}
+{% block title %}Community · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/community.css') }}">
+{% endblock %}
+{% block content %}
+<div class="community-layout">
+  <nav class="card community-topics">
+    <div class="fw-600 mb-4">Topics</div>
+    <ul class="topic-list">
+      {% for t in topics %}
+        <li><a href="{{ url_for('community.feed', topic=t) }}" class="{{ 'is-active' if active_topic == t }}">{{ t }}</a></li>
+      {% endfor %}
+    </ul>
+  </nav>
+
+  <div>
+    <div class="card composer">
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('community.create') }}" class="composer-prompt">Share a story or ask the community...</a>
+        <a class="btn btn-primary" href="{{ url_for('community.create') }}">Post</a>
+      {% else %}
+        <a class="btn btn-primary" href="{{ url_for('auth.login') }}">Log in to post</a>
+      {% endif %}
+    </div>
+
+    <div class="stack mt-4">
+      {% for post in posts %}
+        <article class="card post-card">
+          <div class="row spread">
+            <a class="row post-author" href="{{ url_for('community.profile', user_id=post.author_id) }}">
+              <div class="avatar avatar-md profile-initials">{{ post.author.initials }}</div>
+              <div>
+                <div class="fw-600">{{ post.author.full_name }}</div>
+                <div class="text-sm text-muted">{{ post.created_at.strftime('%d %b') }} · {{ post.topic }}</div>
+              </div>
+            </a>
+          </div>
+          {% if post.title %}<h3 class="mt-4 mb-0"><a href="{{ url_for('community.discussion', post_id=post.id) }}">{{ post.title }}</a></h3>{% endif %}
+          <p class="mt-4">{{ post.body }}</p>
+          {% if post.photos %}<div class="post-photo" style="background-image:url('{{ post.photos[0] }}')"></div>{% endif %}
+          <div class="row post-actions mt-4">
+            {% with liked = post.id in liked %}{% include 'community/_like_button.html' %}{% endwith %}
+            <a class="post-action" href="{{ url_for('community.discussion', post_id=post.id) }}">💬 {{ post.comment_count }} comments</a>
+            <button class="post-action" type="button"
+                    onclick="document.getElementById('report-{{ post.id }}').showModal()">⚑ Report</button>
+          </div>
+          <dialog id="report-{{ post.id }}" class="report-modal">
+            {% include 'community/_report_form.html' %}
+          </dialog>
+        </article>
+      {% else %}
+        <div class="card"><p class="text-muted mb-0">No posts yet. Be the first to share!</p></div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <aside class="stack">
+    <div class="card">
+      <div class="fw-600 mb-4">Trending</div>
+      {% for tag_name, count in trending %}
+        <div class="toggle-row"><div class="fw-600 text-sm">{{ tag_name }}</div><div class="text-sm text-muted">{{ count }}</div></div>
+      {% endfor %}
+    </div>
+    <div class="card card-muted">
+      <div class="fw-600">Lost a pet?</div>
+      <p class="text-sm text-muted">Post an alert and reach pet lovers near you.</p>
+      <a class="btn btn-outline btn-block" href="{{ url_for('lostfound.index') }}">Lost & Found</a>
+    </div>
+  </aside>
+</div>
+{% endblock %}

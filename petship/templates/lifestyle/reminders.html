@@ -1,0 +1,56 @@
+{% extends 'layouts/shelter.html' if is_shelter else 'layouts/adopter.html' %}
+{% block title %}Smart Reminder Centre · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lifestyle.css') }}">
+{% endblock %}
+{% block page_title %}Smart Reminder Centre{% endblock %}
+{% block page_subtitle %}Tasks, appointments, adoption follow-ups, and return visits in one place.{% endblock %}
+{% block content %}
+<div class="row spread row-wrap mb-5">
+  <nav class="row row-wrap" aria-label="Filter reminders by date">
+    {% for period in periods %}
+      <a class="pill {{ 'is-active' if period.key == selected_period }}"
+         href="{{ url_for('reminders.centre', period=period.key) }}"
+         {% if period.key == selected_period %}aria-current="page"{% endif %}>
+        {{ period.label }} <span class="text-muted">({{ period.count }})</span>
+      </a>
+    {% endfor %}
+  </nav>
+  <a class="btn btn-primary" href="{{ url_for('reminders.new_reminder') }}">Create a task</a>
+</div>
+
+<section class="card mb-5" aria-live="polite">
+  <h2 class="h3">{{ selected.label }}</h2>
+  <div class="grid grid-2">
+    {% for category in category_names %}
+      <div class="card">
+        <h3 class="h4">{{ category }}</h3>
+        {% for event in selected.categories[category] %}
+          <article class="toggle-row">
+            <div class="row spread row-wrap">
+              <div>
+                {% if event.reminder_id %}
+                  <div class="fw-600">{{ event.title }}</div>
+                {% else %}
+                  <a class="fw-600" href="{{ event.href }}">{{ event.title }}</a>
+                {% endif %}
+                <div class="text-sm text-muted">{{ event.detail }}</div>
+                <div class="text-sm">{{ event.due_at.strftime('%a, %d %b %Y · %I:%M %p') }}</div>
+              </div>
+              {% if event.reminder_id %}
+                <form method="post" action="{{ url_for('reminders.toggle', reminder_id=event.reminder_id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-outline btn-sm" type="submit">Done</button>
+                </form>
+              {% endif %}
+            </div>
+          </article>
+        {% else %}
+          <p class="text-sm text-muted mb-0">Nothing scheduled.</p>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+{% endblock %}

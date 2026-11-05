@@ -1,0 +1,40 @@
+{#  Reusable component macros mirroring the design system.
+    Import with:  {% from 'partials/macros.html' import badge, stat_card %} #}
+
+{% macro badge(text, variant='neutral') %}
+<span class="badge badge-{{ variant }}">{{ text }}</span>
+{% endmacro %}
+
+{% macro tag(text) %}
+<span class="tag">{{ text }}</span>
+{% endmacro %}
+
+{% macro pill(text, active=False) %}
+<span class="pill {{ 'is-active' if active }}">{{ text }}</span>
+{% endmacro %}
+
+{% macro stat_card(label, value, sub='') %}
+<div class="stat-card">
+  <div class="stat-label">{{ label }}</div>
+  <div class="stat-value">{{ value }}</div>
+  {% if sub %}<div class="stat-sub">{{ sub }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro progress(percent) %}
+<div class="progress" role="progressbar" aria-valuenow="{{ percent }}" aria-valuemin="0" aria-valuemax="100">
+  <span style="width: {{ percent }}%"></span>
+</div>
+{% endmacro %}
+
+{#  Render a WTForms field with label, control, hint and errors. #}
+{% macro field(form_field, hint='', type_class='input') %}
+<div class="field">
+  {{ form_field.label }}
+  {{ form_field(class=type_class) }}
+  {% if hint %}<div class="field-hint">{{ hint }}</div>{% endif %}
+  {% for error in form_field.errors %}
+    <div class="field-error">{{ error }}</div>
+  {% endfor %}
+</div>
+{% endmacro %}

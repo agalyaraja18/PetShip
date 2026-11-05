@@ -1,0 +1,11 @@
+{% extends 'layouts/admin.html' %}
+{% set active_nav = 'overview' %}
+{% block title %}Admin console · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Platform overview{% endblock %}
+{% block page_subtitle %}{% endblock %}
+{% block content %}
+<div class="card">
+  <p class="mb-0">You're logged in as an <strong>Admin</strong>. The full console arrives in Phase 8.</p>
+  <a class="btn btn-ghost mt-4" href="{{ url_for('auth.logout') }}">Log out</a>
+</div>
+{% endblock %}

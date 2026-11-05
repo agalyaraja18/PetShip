@@ -1,0 +1,35 @@
+{% extends 'layouts/public.html' %}
+{% block title %}Privacy Policy · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/errors.css') }}">
+{% endblock %}
+
+{% block content %}
+<h1>Privacy Policy</h1>
+<p class="text-muted">{{ updated }}</p>
+
+<div class="card card-muted mt-4">
+  <p class="mb-0"><span class="text-primary fw-600">In short:</span>
+    we collect only what we need to match pets with families and support their
+    care. We never sell your data.</p>
+</div>
+
+<div class="legal-layout">
+  <nav class="legal-toc card" aria-label="On this page">
+    <div class="fw-600 mb-4">On this page</div>
+    <ol>
+      {% for anchor, heading, _ in sections %}
+        <li><a href="#{{ anchor }}">{{ heading[3:] }}</a></li>
+      {% endfor %}
+    </ol>
+  </nav>
+  <div class="legal-body">
+    {% for anchor, heading, body in sections %}
+      <section id="{{ anchor }}">
+        <h2>{{ heading }}</h2>
+        <p>{{ body }}</p>
+      </section>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends 'layouts/adopter.html' %}
+{% block title %}Account settings · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Account settings{% endblock %}
+{% block page_subtitle %}Manage your account preferences and security.{% endblock %}
+{% block content %}
+{% set pref_labels = {
+  'adoption_updates': ('Adoption updates', 'Application status, home visits, and agreements'),
+  'health_reminders': ('Health reminders', 'Vaccines, medications, and check-up alerts'),
+  'smart_reminders': ('Smart reminders', 'Custom tasks and care reminders you create'),
+  'messages': ('Chat messages', 'New messages from shelters and vets'),
+  'sms_alerts': ('SMS alerts', 'Urgent reminders sent via text message'),
+  'vet_appointments': ('Vet appointments', 'Upcoming and confirmed vet visit alerts'),
+} %}
+<div x-data="{ tab: 'account' }" class="settings-layout">
+  <nav class="settings-tabs card">
+    {% for key, label in [('account','Account'),('notifications','Notifications'),('security','Security')] %}
+      <button class="settings-tab" :class="{ 'is-active': tab === '{{ key }}' }" @click="tab = '{{ key }}'">{{ label }}</button>
+    {% endfor %}
+  </nav>
+
+  <div class="stack">
+    <!-- Account -->
+    <section class="card" x-show="tab === 'account'" style="display:none;">
+      <h3>Account</h3>
+      <div class="row spread toggle-row">
+        <div>
+          <div class="fw-600">Email</div>
+          <div class="text-sm text-muted">{{ user.email }}</div>
+        </div>
+      </div>
+      <div class="row spread toggle-row">
+        <div>
+          <div class="fw-600">User ID</div>
+          <div class="text-sm text-muted">{{ user.public_id or 'Not assigned yet' }}</div>
+        </div>
+      </div>
+      <div class="row spread toggle-row">
+        <div>
+          <div class="fw-600">Role</div>
+          <div class="text-sm text-muted">{{ user.role.label }}</div>
+        </div>
+      </div>
+      <div class="mt-4">
+        <a class="btn btn-outline btn-sm" href="{{ url_for('profile.edit') }}">Edit Profile</a>
+      </div>
+      <div class="row spread toggle-row mt-4" x-data="{ confirm: false }">
+        <div>
+          <div class="fw-600">Delete account</div>
+          <div class="text-sm text-muted">Permanently remove your account and associated data.</div>
+        </div>
+        <div>
+          <button class="btn btn-danger btn-sm" x-show="!confirm" @click="confirm = true">Delete account</button>
+          <form method="post" action="{{ url_for('profile.delete_account') }}" x-show="confirm" style="display:none;" class="row">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-danger btn-sm" type="submit">Confirm delete</button>
+            <button class="btn btn-ghost btn-sm" type="button" @click="confirm = false">Cancel</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notifications -->
+    <section class="card" x-show="tab === 'notifications'">
+      <h3>Notification preferences</h3>
+      <p class="text-muted">Choose how PetShip keeps you updated.</p>
+      <form method="post" action="{{ url_for('profile.update_notifications') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% for key, (label, desc) in pref_labels.items() %}
+          <div class="row spread toggle-row">
+            <div>
+              <div class="fw-600">{{ label }}</div>
+              <div class="text-sm text-muted">{{ desc }}</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" name="{{ key }}" {{ 'checked' if user.prefs.get(key, False) }}>
+              <span class="slider"></span>
+            </label>
+          </div>
+        {% endfor %}
+        <button class="btn btn-primary mt-4">Save preferences</button>
+      </form>
+    </section>
+
+    <!-- Security -->
+    <section class="card" x-show="tab === 'security'" style="display:none;">
+      <h3>Security</h3>
+      <div class="row spread toggle-row">
+        <div>
+          <div class="fw-600">Password</div>
+          <div class="text-sm text-muted">Change your password</div>
+        </div>
+        <a class="btn btn-outline btn-sm" href="{{ url_for('auth.forgot_password') }}">Change</a>
+      </div>
+      <form method="post" action="{{ url_for('profile.toggle_2fa') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row spread toggle-row">
+          <div>
+            <div class="fw-600">Two-factor authentication</div>
+            <div class="text-sm text-muted">Add an extra layer of protection</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" name="two_factor_enabled" onchange="this.form.submit()"
+                   {{ 'checked' if user.two_factor_enabled }}>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

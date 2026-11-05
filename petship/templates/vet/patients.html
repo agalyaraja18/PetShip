@@ -1,0 +1,28 @@
+{% extends 'layouts/vet.html' %}
+{% block title %}Patients · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Patients{% endblock %}
+{% block page_subtitle %}{{ patients|length }} patients{% endblock %}
+{% block content %}
+<div class="row row-wrap mb-4">
+  <a class="btn btn-primary" href="{{ url_for('vet_workspace.new_patient') }}">Add new patient</a>
+</div>
+<div class="card">
+  <table class="data-table">
+    <thead><tr><th>Patient</th><th>Breed</th><th>Owner</th><th>Health records</th></tr></thead>
+    <tbody>
+      {% for patient in patients %}
+        <tr>
+          <td class="fw-600">{{ patient.name }} · {{ patient.pet.public_pet_id }}</td>
+          <td>{{ patient.breed }}</td>
+          <td>{{ patient.owner }}</td>
+          <td>
+            <a class="btn btn-outline btn-sm" href="{{ url_for('vet_workspace.patient_health_record', pet_id=patient.pet.id) }}">Open health record</a>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4"><p class="text-muted mb-0">No patients yet. Add an adopted pet using the pet ID shared by its owner.</p></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

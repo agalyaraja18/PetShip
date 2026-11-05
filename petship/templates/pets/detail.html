@@ -1,0 +1,91 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag, badge %}
+{% block title %}Meet {{ pet.name }} · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pets.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="detail-layout">
+  <div>
+    <div class="detail-gallery card card-flush">
+      {% if pet.primary_photo %}
+        <img class="detail-main" src="{{ pet.primary_photo }}" alt="{{ pet.name }}">
+      {% else %}
+        <div class="detail-main pet-card-placeholder" data-species="{{ pet.species.value }}"><span>{{ pet.name[0] }}</span></div>
+      {% endif %}
+    </div>
+    {% if pet.photos and pet.photos|length > 1 %}
+      <div class="detail-thumbs mt-4">
+        {% for photo in pet.photos[:4] %}
+          <img src="{{ photo }}" alt="{{ pet.name }} photo" class="detail-thumb">
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <p class="text-sm text-muted mb-0">
+      <a href="{{ url_for('pets.browse') }}">Browse</a> /
+      {{ pet.species.label }}s / {{ pet.name }}
+    </p>
+    <h1 class="mb-0">Meet {{ pet.name }}</h1>
+    <p class="text-muted">
+      {{ pet.breed or pet.species.label }} · {{ pet.sex.label }}
+      {%- if pet.shelter.city %} · {{ pet.shelter.city }}{% endif %}
+      {%- if pet.distance_km %}, {{ pet.distance_km|int }} km away{% endif %}
+    </p>
+
+    <div class="detail-facts">
+      <div class="fact"><div class="fact-label">Age</div><div class="fact-value">{{ pet.age_text or pet.age_group.label }}</div></div>
+      <div class="fact"><div class="fact-label">Size</div><div class="fact-value">{{ pet.size.label }}</div></div>
+      <div class="fact"><div class="fact-label">Weight</div><div class="fact-value">{{ pet.weight_kg|int if pet.weight_kg else '—' }} kg</div></div>
+      <div class="fact"><div class="fact-label">Energy</div><div class="fact-value">{{ (pet.energy or '—')|capitalize }}</div></div>
+    </div>
+
+    <p>{{ pet.description or 'This sweet pet is looking for a loving home.' }}</p>
+
+    <div class="row row-wrap mb-5">
+      {% for t in pet.health_tags or [] %}{{ tag(t) }}{% endfor %}
+      {% for t in pet.personality_tags or [] %}{{ tag(t) }}{% endfor %}
+      {% for t in pet.good_with or [] %}{{ tag('Good with ' ~ t) }}{% endfor %}
+    </div>
+
+    <div class="card card-muted shelter-card mb-5">
+      <div class="shelter-logo">{{ pet.shelter.name[:2]|upper }}</div>
+      <div>
+        <div class="fw-600">{{ pet.shelter.name }}</div>
+        <div class="text-sm text-muted">
+          {% if pet.shelter.is_verified %}✓ Verified shelter · {% endif %}
+          {% if pet.shelter.avg_response_hours %}responds in {{ pet.shelter.avg_response_hours|int }} hrs{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="row row-wrap">
+      <a class="btn btn-primary btn-lg" href="{{ url_for('adoption.start', pet_id=pet.id) }}">Adopt {{ pet.name }}</a>
+      {% if pet.shelter.owner_id %}
+        <a class="btn btn-outline btn-lg" href="{{ url_for('messages.start', user_id=pet.shelter.owner_id) }}">Ask a question</a>
+      {% endif %}
+      {% if current_user.is_authenticated %}
+        <button class="btn btn-outline btn-lg" type="button"
+                hx-post="{{ url_for('favourites.toggle', pet_id=pet.id) }}"
+                hx-swap="none">
+          {{ '♥ Saved' if pet.id in fav_ids else '♡ Save' }}
+        </button>
+      {% else %}
+        <a class="btn btn-outline btn-lg" href="{{ url_for('auth.login') }}">♡ Save</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if similar %}
+<section class="mt-8">
+  <h2>More {{ pet.species.label.lower() }}s to meet</h2>
+  <div class="grid grid-3 mt-4">
+    {% for s in similar %}{% with pet=s %}{% include 'pets/_pet_card.html' %}{% endwith %}{% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

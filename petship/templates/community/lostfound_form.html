@@ -1,0 +1,38 @@
+{% extends 'layouts/public.html' %}
+{% block title %}Report lost or found pet · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/community.css') }}">
+{% endblock %}
+{% block content %}
+<form method="post" enctype="multipart/form-data" class="card" style="max-width: 640px; margin: 0 auto;" x-data="{ kind: 'lost' }">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <h1>Report a lost or found pet</h1>
+
+  <div class="field"><label>Is this pet lost or found?</label>
+    <div class="row row-wrap">
+      {% for k in ['lost', 'found'] %}
+        <label class="pill" :class="{ 'is-active': kind === '{{ k }}' }" @click="kind = '{{ k }}'">
+          <input type="radio" name="kind" value="{{ k }}" x-model="kind" hidden>{{ k|capitalize }}</label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="field"><label>Pet name (if known)</label><input class="input" name="pet_name"></div>
+    <div class="field"><label>Species</label><input class="input" name="species" placeholder="Dog, Cat..." maxlength="40" required></div>
+  </div>
+  <div class="field"><label>Description</label>
+    <textarea class="textarea" name="description" placeholder="Colour, size, collar, distinctive marks..."></textarea></div>
+  <div class="field"><label>Last seen / found location</label><input class="input" name="location" maxlength="200" placeholder="Besant Nagar beach" required></div>
+  <div class="grid grid-2">
+    <div class="field"><label>Latitude (optional)</label><input class="input" name="lat" placeholder="13.0002"></div>
+    <div class="field"><label>Longitude (optional)</label><input class="input" name="lng" placeholder="80.2668"></div>
+  </div>
+  <label class="upload-drop">
+    <span class="text-primary fw-600">+ Add a photo</span>
+    <span class="text-sm text-muted">A clear photo is required for lost-pet alerts</span>
+    <input type="file" name="photo" accept="image/png,image/jpeg,image/gif,image/webp" :required="kind === 'lost'">
+  </label>
+  <button class="btn btn-primary mt-5" type="submit">Post alert</button>
+</form>
+{% endblock %}

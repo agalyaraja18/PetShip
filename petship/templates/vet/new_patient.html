@@ -1,0 +1,21 @@
+{% extends 'layouts/vet.html' %}
+{% block title %}New patient · {{ APP_NAME }}{% endblock %}
+{% block page_title %}New patient{% endblock %}
+{% block page_subtitle %}Link an adopted pet to your patient list using its unique pet ID.{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 640px;">
+  <form method="post" class="stack">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+      <label for="pet_id">Pet ID</label>
+      <input id="pet_id" class="input" name="pet_id" required
+             pattern="PET-[0-9]{8}" placeholder="PET-00000001">
+      <div class="text-sm text-muted mt-1">The adopter can find this ID on their My Pets card or health page.</div>
+    </div>
+    <div class="row row-wrap">
+      <button class="btn btn-primary" type="submit">Add patient</button>
+      <a class="btn btn-ghost" href="{{ url_for('vet_workspace.patients') }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

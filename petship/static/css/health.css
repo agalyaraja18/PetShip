@@ -1,0 +1,12 @@
+/* Health dashboard (Task 21) */
+.big-stat { font-family: var(--font-heading); font-weight: 600; font-size: 2rem; margin: var(--space-2) 0; }
+
+/* Adopter dashboard (Task 22) */
+.mini-timeline { list-style: none; padding: 0; margin: var(--space-3) 0; }
+.mini-timeline li { padding: 0.3rem 0 0.3rem 1.5rem; position: relative; color: var(--color-text-muted); font-size: 0.9rem; }
+.mini-timeline li::before { content: '○'; position: absolute; left: 0; }
+.mini-timeline li.is-done { color: var(--color-text); }
+.mini-timeline li.is-done::before { content: '✓'; color: var(--color-success); }
+.mini-timeline li.is-current { color: var(--color-primary); font-weight: 600; }
+.mini-timeline li.is-current::before { content: '●'; color: var(--color-primary); }
+.add-pet-card { border: 2px dashed var(--color-accent); background: transparent; display: flex; flex-direction: column; justify-content: center; text-align: center; }

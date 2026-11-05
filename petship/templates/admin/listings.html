@@ -1,0 +1,39 @@
+{% extends 'layouts/admin.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Pet listing moderation · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Pet listing moderation{% endblock %}
+{% block page_subtitle %}{{ counts.all }} listings{% endblock %}
+{% block content %}
+<div class="row row-wrap mb-4">
+  {% for key, label in [('all','All'),('available','Available'),('draft','Drafts'),('removed','Removed')] %}
+    <a class="pill {{ 'is-active' if status == key }}" href="{{ url_for('admin_mod.listings', status=key) }}">{{ label }} ({{ counts[key] }})</a>
+  {% endfor %}
+</div>
+<div class="grid grid-4">
+  {% for pet in pets %}
+    <div class="card">
+      {% if pet.primary_photo %}
+        <img class="list-cover" src="{{ pet.primary_photo }}" alt="{{ pet.name }}">
+      {% else %}
+        <div class="pet-card-placeholder list-cover" data-species="{{ pet.species.value }}"><span>{{ pet.name[0] }}</span></div>
+      {% endif %}
+      <div class="mt-4">
+        <div class="fw-600">{{ pet.name }}</div>
+        <div class="text-sm text-muted">{{ pet.shelter.name }} · #{{ pet.id }}</div>
+        {{ badge(pet.status.label, pet.status.badge_variant) }}
+      </div>
+      <form method="post" action="{{ url_for('admin_mod.listing_action', pet_id=pet.id) }}" class="row mt-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if pet.status != PetStatus.REMOVED %}
+          <button class="btn btn-outline btn-sm" name="action" value="remove" type="submit">Remove</button>
+        {% endif %}
+        {% if pet.status != PetStatus.AVAILABLE %}
+          <button class="btn btn-primary btn-sm" name="action" value="approve" type="submit">Approve</button>
+        {% endif %}
+      </form>
+    </div>
+  {% else %}
+    <div class="card" style="grid-column:1/-1;"><p class="text-muted mb-0">No listings in this view.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

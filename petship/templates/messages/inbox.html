@@ -1,0 +1,87 @@
+{% extends layout_template | default('layouts/adopter.html') %}
+{% block title %}Messages · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/community.css') }}">
+{% endblock %}
+{% block page_head %}{% endblock %}
+{% block content %}
+<div class="messages-layout">
+  <aside class="card messages-list">
+    <h3>Messages</h3>
+    {% for t in threads %}
+      {% set other = t.other(current_user.id) %}
+      <a class="thread-item {{ 'is-active' if active and t.id == active.id }}"
+         href="{{ url_for('messages.inbox', thread_id=t.id) }}">
+        <div class="avatar avatar-md profile-initials">{{ other.initials }}</div>
+        <div style="flex:1; min-width:0;">
+          <div class="fw-600">{{ other.full_name }}</div>
+          <div class="text-sm text-muted thread-preview">{{ t.last_message.body if t.last_message else 'No messages yet' }}</div>
+        </div>
+      </a>
+    {% else %}
+      <p class="text-muted">No conversations yet. Start one below.</p>
+    {% endfor %}
+
+    {% if contacts %}
+      <div class="contacts-section">
+        <div class="text-sm fw-600 text-muted" style="padding: var(--space-3) 0 var(--space-2);">Start a conversation</div>
+        {% for c in contacts %}
+          <a class="thread-item" href="{{ url_for('messages.start', user_id=c.user_id) }}">
+            <div class="avatar avatar-md profile-initials">{{ c.name[:1] }}</div>
+            <div style="flex:1; min-width:0;">
+              <div class="fw-600">{{ c.name }}</div>
+              <div class="text-sm text-muted">{{ c.role }}</div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </aside>
+
+  <div class="card thread-view">
+    {% if active %}
+      {% set other = active.other(current_user.id) %}
+      <div class="thread-head row" style="gap: var(--space-3);">
+        <div class="avatar avatar-md profile-initials">{{ other.initials }}</div>
+        <div class="fw-600">{{ other.full_name }}</div>
+      </div>
+      <div class="thread-stream" id="thread-stream">
+        {% for m in messages %}
+          {% set mine = (m.sender_id == current_user.id) %}
+          {% include 'messages/_message.html' %}
+        {% endfor %}
+      </div>
+      <form class="thread-composer" hx-post="{{ url_for('messages.send', thread_id=active.id) }}"
+            hx-target="#thread-stream" hx-swap="beforeend"
+            hx-on::after-request="this.reset(); document.getElementById('thread-stream').scrollTop = 1e9;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="input" name="body" placeholder="Write a message..." autocomplete="off" required>
+        <button class="btn btn-primary" type="submit">Send</button>
+      </form>
+    {% else %}
+      <p class="text-muted">Select a conversation to start messaging.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if active %}
+<script src="{{ url_for('static', filename='js/vendor/socket.io.min.js') }}"></script>
+<script>
+  // Live delivery: append incoming messages for the open thread.
+  try {
+    var socket = io();
+    socket.on('connect', function () { socket.emit('join', {}); });
+    socket.on('message', function (data) {
+      if (String(data.thread_id) !== "{{ active.id }}") return;
+      var stream = document.getElementById('thread-stream');
+      var el = document.createElement('div');
+      el.className = 'msg-bubble theirs';
+      el.innerHTML = '<p class="mb-0"></p>';
+      el.querySelector('p').textContent = data.body;
+      stream.appendChild(el);
+      stream.scrollTop = 1e9;
+    });
+  } catch (e) { /* sockets optional; htmx send still works */ }
+</script>
+{% endif %}
+{% endblock %}

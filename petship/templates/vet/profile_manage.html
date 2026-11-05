@@ -1,0 +1,77 @@
+{% extends 'layouts/vet.html' %}
+{% block title %}Profile management · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Profile management{% endblock %}
+{% block page_subtitle %}{% endblock %}
+{% block content %}
+<form method="post" enctype="multipart/form-data" class="vet-manage-grid">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="card text-center">
+    {% if vet.photo_url %}<img class="avatar avatar-lg" style="margin:0 auto;" src="{{ vet.photo_url }}" alt="photo">
+    {% else %}<div class="avatar avatar-lg profile-initials" style="margin:0 auto;">{{ vet.display_name.split(' ')[-1][0] }}</div>{% endif %}
+    {% if editing %}
+      <label class="btn btn-outline mt-4" style="cursor:pointer;">Change photo
+        <input type="file" name="photo" accept="image/*" hidden></label>
+    {% endif %}
+    {% if vet.is_verified %}<div class="text-sm text-success mt-4">✓ Verified · {{ vet.licence_no }}</div>{% endif %}
+  </div>
+
+  <div class="card">
+    <div class="grid grid-2">
+      <div class="field"><label>Full name</label><input class="input" name="display_name" value="{{ vet.display_name }}" {{ '' if editing else 'disabled' }}></div>
+      <div class="field"><label>Qualifications</label><input class="input" name="qualifications" value="{{ vet.qualifications or '' }}" {{ '' if editing else 'disabled' }}></div>
+    </div>
+    <div class="grid grid-2">
+      <div class="field"><label>Clinic</label><input class="input" name="clinic_name" value="{{ vet.clinic_name or '' }}" {{ '' if editing else 'disabled' }}></div>
+      <div class="field"><label>Experience (years)</label><input class="input" type="number" name="experience_years" value="{{ vet.experience_years or '' }}" {{ '' if editing else 'disabled' }}></div>
+    </div>
+    <div class="field"><label>Clinic address</label><input class="input" name="clinic_address" value="{{ vet.clinic_address or '' }}" {{ '' if editing else 'disabled' }}></div>
+    <div class="grid grid-2">
+      <div class="field"><label>City</label><input class="input" name="city" value="{{ vet.city or '' }}" {{ '' if editing else 'disabled' }}></div>
+      <div class="field"><label>Languages (comma-separated)</label><input class="input" name="languages" value="{{ (vet.languages or [])|join(', ') }}" {{ '' if editing else 'disabled' }}></div>
+    </div>
+    <div class="field"><label>Bio</label><textarea class="textarea" name="bio" {{ '' if editing else 'disabled' }}>{{ vet.bio or '' }}</textarea></div>
+
+    <div class="field"><label>Specialties</label>
+      <div class="row row-wrap">
+        {% for s in specialties %}
+          <label class="pill {{ 'is-active' if s in (vet.specialties or []) }}">
+            <input type="checkbox" name="specialties" value="{{ s }}" hidden {{ 'checked' if s in (vet.specialties or []) }} {{ 'disabled' if not editing }}>{{ s }}</label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="field"><label>Consultation fee (₹)</label><input class="input" type="number" name="consult_fee" value="{{ vet.consult_fee|int if vet.consult_fee else '' }}" {{ '' if editing else 'disabled' }}></div>
+      <div class="field"><label>Video consult fee (₹)</label><input class="input" type="number" name="video_fee" value="{{ vet.video_fee|int if vet.video_fee else '' }}" {{ '' if editing else 'disabled' }}></div>
+    </div>
+
+    <div class="stack">
+      <label class="row spread toggle-row"><span>Video consults</span>
+        <span class="switch"><input type="checkbox" name="offers_video" {{ 'checked' if vet.offers_video }} {{ 'disabled' if not editing }}><span class="slider"></span></span></label>
+      <label class="row spread toggle-row"><span>Home visits</span>
+        <span class="switch"><input type="checkbox" name="offers_home_visits" {{ 'checked' if vet.offers_home_visits }} {{ 'disabled' if not editing }}><span class="slider"></span></span></label>
+      <label class="row spread toggle-row"><span>Emergency slots</span>
+        <span class="switch"><input type="checkbox" name="offers_emergency" {{ 'checked' if vet.offers_emergency }} {{ 'disabled' if not editing }}><span class="slider"></span></span></label>
+    </div>
+
+    {% if editing %}
+      <div class="row mt-4">
+        <button class="btn btn-primary" type="submit">Save profile</button>
+        <a class="btn btn-ghost" href="{{ url_for('vet.manage_profile') }}">Cancel</a>
+      </div>
+    {% else %}
+      <a class="btn btn-primary mt-4" href="{{ url_for('vet.manage_profile', edit=1) }}">Edit profile</a>
+    {% endif %}
+  </div>
+</form>
+<script>
+  document.querySelectorAll('.vet-manage-grid .pill').forEach(function (label) {
+    label.addEventListener('click', function () {
+      var input = label.querySelector('input');
+      if (input.disabled) return;
+      setTimeout(function () { label.classList.toggle('is-active', input.checked); }, 0);
+    });
+  });
+</script>
+{% endblock %}

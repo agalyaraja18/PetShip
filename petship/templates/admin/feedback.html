@@ -1,0 +1,38 @@
+{% extends 'layouts/admin.html' %}
+{% from 'partials/macros.html' import stat_card %}
+{% block title %}Platform feedback · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Platform feedback{% endblock %}
+{% block page_subtitle %}Ratings and feedback shared by PetShip users.{% endblock %}
+{% block content %}
+<div class="grid grid-2 mb-5">
+  {{ stat_card('Feedback submissions', feedback_items|length, 'Latest 200') }}
+  {{ stat_card('Average rating', average_rating ~ ' / 5') }}
+</div>
+<div class="stack">
+  {% for item in feedback_items %}
+    <article class="card">
+      <div class="row spread row-wrap">
+        <div>
+          <strong>{{ item.name }}</strong>
+          <div class="text-sm text-muted">{{ item.user.role.label if item.user else 'Website visitor' }} · {{ item.created_at.strftime('%d %b %Y, %I:%M %p') }}</div>
+        </div>
+        <span class="text-primary" aria-label="{{ item.rating }} out of 5 stars">{{ '★' * item.rating }}{{ '☆' * (5 - item.rating) }}</span>
+      </div>
+      <p class="mt-4 mb-0">{{ item.body }}</p>
+      <div class="row spread mt-4">
+        <span class="badge badge-{{ 'success' if item.handled else 'warning' }}">{{ 'Handled' if item.handled else 'Needs review' }}</span>
+        <form method="post" action="{{ url_for('admin.feedback_action', feedback_id=item.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          {% if item.handled %}
+            <button class="btn btn-outline btn-sm" type="submit" name="action" value="unhandled">Mark unhandled</button>
+          {% else %}
+            <button class="btn btn-primary btn-sm" type="submit" name="action" value="handled">Mark handled</button>
+          {% endif %}
+        </form>
+      </div>
+    </article>
+  {% else %}
+    <div class="card"><p class="text-muted mb-0">No user feedback has been submitted yet.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

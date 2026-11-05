@@ -1,0 +1,44 @@
+{% extends 'layouts/admin.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Reports & complaints · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Reports &amp; complaints{% endblock %}
+{% block page_subtitle %}{% endblock %}
+{% block content %}
+<div class="row row-wrap mb-4">
+  {% for key, label in [('open','Open'),('resolved','Resolved'),('dismissed','Dismissed')] %}
+    <a class="pill {{ 'is-active' if status == key }}" href="{{ url_for('admin_mod.reports', status=key) }}">{{ label }}</a>
+  {% endfor %}
+</div>
+<div class="card">
+  <table class="data-table">
+    <thead><tr><th>ID</th><th>Type</th><th>Reason</th><th>Target</th><th>Priority</th><th>Age</th><th></th></tr></thead>
+    <tbody>
+      {% for r in reports %}
+        <tr>
+          <td>#R-{{ r.id }}</td>
+          <td>{{ r.target_type.label }}</td>
+          <td>{{ r.reason }}</td>
+          <td class="text-sm text-muted">
+            {{ r.target_label or ('#' ~ r.target_id) }}
+            {% if r.details %}<details><summary>Details</summary><p>{{ r.details }}</p></details>{% endif %}
+            {% if r.reporter %}<div>Reported by {{ r.reporter.full_name }}</div>{% endif %}
+          </td>
+          <td>{{ badge(r.priority|capitalize, 'danger' if r.priority == 'urgent' else 'warning') }}</td>
+          <td>{{ r.created_at.strftime('%d %b') }}</td>
+          <td>
+            {% if r.status.value == 'open' %}
+              <form method="post" action="{{ url_for('admin_mod.resolve_report', report_id=r.id) }}" class="row">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-ghost btn-sm" name="decision" value="dismiss" type="submit">Dismiss</button>
+                <button class="btn btn-primary btn-sm" name="decision" value="resolve" type="submit">Resolve</button>
+              </form>
+            {% else %}{{ badge(r.status.label, 'neutral') }}{% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7"><p class="text-muted mb-0">No reports in this view.</p></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'auth/_auth_base.html' %}
+{% from 'partials/macros.html' import field %}
+{% block title %}Forgot password · {{ APP_NAME }}{% endblock %}
+
+{% block visual %}
+  <div class="auth-quote">
+    <p>It happens to the best of us.</p>
+    <div class="cite">We'll help you back in.</div>
+  </div>
+{% endblock %}
+
+{% block panel %}
+<div class="auth-icon">🔑</div>
+<h1>Forgot your password?</h1>
+{% if sent %}
+  <p class="text-sm text-muted">Step 2 of 4 · Enter the 6-digit code sent to your email address.</p>
+{% else %}
+  <p class="text-sm text-muted">Step 1 of 4 · Enter your registered email address to receive a 6-digit verification code.</p>
+{% endif %}
+
+{% if sent %}
+  <form method="post" action="{{ url_for('auth.verify_reset_code') }}" class="mt-4">
+    {{ reset_code_form.hidden_tag() }}
+    {{ field(reset_code_form.code) }}
+    <button type="submit" class="btn btn-primary btn-block">Enter code</button>
+  </form>
+{% else %}
+<form method="post">
+  {{ form.hidden_tag() }}
+  {{ field(form.email) }}
+  <button type="submit" class="btn btn-primary btn-block btn-lg">Send reset code</button>
+</form>
+{% endif %}
+
+<p class="auth-foot"><a href="{{ url_for('auth.login') }}" class="text-primary">&larr; Back to login</a></p>
+
+{% if sent %}
+  <div class="card card-muted mt-5">
+    <p class="text-sm mb-0">If you don’t receive the code, check your spam folder or contact hello@petship.com.</p>
+  </div>
+{% endif %}
+{% endblock %}

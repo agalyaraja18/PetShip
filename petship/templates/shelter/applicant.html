@@ -1,0 +1,121 @@
+{% extends 'layouts/shelter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% set a = application %}
+{% set ans = application.answers or {} %}
+{% block title %}Applicant · {{ APP_NAME }}{% endblock %}
+{% block page_head %}{% endblock %}
+{% block content %}
+<div class="card mb-5">
+  <div class="row spread">
+    <div class="row" style="gap: var(--space-4);">
+      <div class="avatar avatar-lg profile-initials">{{ a.applicant.initials }}</div>
+      <div>
+        <h2 class="mb-0">{{ ans.get('applicant_name') or a.applicant.full_name }} · applying for {{ a.pet.name }}</h2>
+        <p class="text-sm text-muted mb-0">
+          Application {{ a.reference }} · submitted {{ a.created_at.strftime('%d %b %Y') }}
+          {%- if ans.get('applicant_address') %} · {{ ans.get('applicant_address') }}{% elif a.applicant.city %} · {{ a.applicant.city }}{% endif %}
+        </p>
+        {% if ans.get('applicant_phone') %}<p class="text-sm text-muted mb-0">Phone: {{ ans.get('applicant_phone') }}</p>{% endif %}
+      </div>
+    </div>
+    <div class="match-score match-score-lg">{{ score }}%</div>
+  </div>
+</div>
+
+<div class="grid grid-3 mb-5">
+  <div class="card">
+    <h3>Household</h3>
+    <div class="stack text-sm">
+      <div class="row spread"><span class="text-muted">Home</span><strong>{{ ans.get('home_type', '—') }}</strong></div>
+      <div class="row spread"><span class="text-muted">Ownership</span><strong>{{ ans.get('ownership', '—') }}</strong></div>
+      <div class="row spread"><span class="text-muted">Other pets</span><strong>{{ ans.get('other_pets', '—') }}</strong></div>
+      <div class="row spread"><span class="text-muted">Alone time</span><strong>{{ ans.get('hours_alone', '—') }}</strong></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Checks</h3>
+    <ul class="check-list text-sm">
+      <li class="{{ 'met' if a.applicant.is_verified }}">Email verified</li>
+      <li class="{{ 'met' if ans.get('ref_name') }}">Reference provided</li>
+      <li class="{{ 'met' if ans.get('prior_experience') }}">Prior pet experience</li>
+      <li class="{{ 'met' if home_visit and home_visit.status.value == 'completed' }}">Home visit done</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Why {{ a.pet.name }}?</h3>
+    <p class="text-sm text-muted">{{ ans.get('prior_experience') or 'No note provided.' }}</p>
+    {% if ans.get('sleep_location') %}<p class="text-sm mb-0">Sleep: {{ ans.get('sleep_location') }}</p>{% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="row spread row-wrap">
+    <div>Current status: {{ badge(a.stage.label, 'primary') }}</div>
+    <div class="row row-wrap">
+    {% if a.stage.value in ['submitted', 'review', 'confirmed', 'home_visit', 'agreement'] %}
+    <form method="post" action="{{ url_for('shelter_requests.action', app_id=a.id) }}" class="row row-wrap">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline" name="action" value="decline" type="submit">Decline</button>
+      {% if a.stage.value == 'submitted' %}
+        <button class="btn btn-primary" name="action" value="review" type="submit">Start application review</button>
+      {% elif a.stage.value == 'review' %}
+        <button class="btn btn-primary" name="action" value="confirm" type="submit">Confirm application</button>
+      {% elif a.stage.value == 'home_visit' and home_visit and home_visit.status.value == 'completed' %}
+        <button class="btn btn-primary" name="action" value="agreement" type="submit">Move to adoption agreement</button>
+      {% endif %}
+      {% if a.stage.value == 'agreement' and agreement and agreement.is_fully_signed %}
+        <button class="btn btn-primary" name="action" value="complete" type="submit">Complete adoption</button>
+      {% endif %}
+    </form>
+    {% endif %}
+    {% if a.stage.value == 'confirmed' %}
+      <form method="post" action="{{ url_for('shelter_requests.action', app_id=a.id) }}" class="row row-wrap">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="home_visit">
+        <div class="field mb-0"><label for="visit-time">Home visit date &amp; time</label><input id="visit-time" class="input" type="datetime-local" name="scheduled_for" required></div>
+        <div class="field mb-0"><label for="visit-location">Location</label><input id="visit-location" class="input" name="location" placeholder="Home address"></div>
+        <div class="field mb-0"><label for="visit-note">Note</label><input id="visit-note" class="input" name="note" placeholder="Visit details"></div>
+        <button class="btn btn-primary" type="submit">Schedule home visit</button>
+      </form>
+    {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if home_visit %}
+  <div class="card mt-5">
+    <h3>Home visit</h3>
+    <p class="text-sm text-muted">Scheduled {{ home_visit.scheduled_for.strftime('%d %b %Y · %I:%M %p') }} · {{ home_visit.status.label }}</p>
+    {% if home_visit.location %}<p class="text-sm text-muted">{{ home_visit.location }}</p>{% endif %}
+    {% if home_visit.note %}<p class="text-sm text-muted">{{ home_visit.note }}</p>{% endif %}
+  </div>
+{% endif %}
+
+{% if a.stage.value in ['agreement', 'complete'] %}
+  <div class="card mt-5">
+    <h3>Adoption agreement</h3>
+    {% if agreement %}
+      <p class="text-muted">
+        {{ agreement.original_filename }} · Shelter signature: {{ agreement.shelter_signature or 'Pending' }} ·
+        Adopter signature: {{ agreement.adopter_signature or 'Pending' }}
+      </p>
+      <div class="row row-wrap">
+        <a class="btn btn-outline" href="{{ url_for('adoption.download_agreement', app_id=a.id) }}">Download agreement</a>
+        {% if agreement.is_fully_signed %}
+          <span class="text-sm text-success">Both parties signed.</span>
+        {% endif %}
+      </div>
+    {% else %}
+      <p class="text-muted">Upload the agreement PDF and sign it as the shelter representative. The adopter can then review and sign it.</p>
+    {% endif %}
+    {% if a.stage.value == 'agreement' and (not agreement or not agreement.adopter_signature) %}
+      <form method="post" action="{{ url_for('shelter_requests.share_agreement', app_id=a.id) }}" enctype="multipart/form-data" class="mt-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field"><label>Agreement PDF</label><input class="input" type="file" name="agreement" accept="application/pdf" required></div>
+        <div class="field"><label>Shelter representative's full name</label><input class="input" name="signature" maxlength="120" required></div>
+        <button class="btn btn-primary" type="submit">{{ 'Replace and share agreement' if agreement else 'Share agreement' }}</button>
+      </form>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag, badge %}
+{% block title %}Find a trusted vet · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/vet.css') }}">
+{% endblock %}
+{% block content %}
+<div class="row spread row-wrap">
+  <h1 class="mb-0">Find a trusted vet</h1>
+  <a class="btn btn-outline" href="{{ url_for('learning.emergency') }}">Emergency vet</a>
+</div>
+
+<form class="vet-search card mt-4" method="get">
+  <input class="input" name="q" value="{{ q }}" placeholder="🔍 Search by name, clinic, or specialty">
+  <select class="select" name="specialty" style="max-width: 200px;">
+    {% for s in specialties %}<option value="{{ s }}" {{ 'selected' if active_specialty == s }}>{{ s }}</option>{% endfor %}
+  </select>
+  <button class="btn btn-primary" type="submit">Search</button>
+</form>
+
+<div class="vet-grid mt-5">
+  {% for vet in vets %}
+    <article class="card vet-card">
+      <div class="row" style="gap: var(--space-4);">
+        {% if vet.photo_url %}<img class="avatar avatar-lg" src="{{ vet.photo_url }}" alt="{{ vet.display_name }}">
+        {% else %}<div class="avatar avatar-lg profile-initials">{{ vet.display_name.split(' ')[-1][0] }}</div>{% endif %}
+        <div>
+          <h3 class="mb-0"><a href="{{ url_for('vet.detail', slug=vet.slug) }}">{{ vet.display_name }}</a></h3>
+          <div class="text-sm text-muted">{{ vet.qualifications }} · {{ vet.experience_years }} yrs</div>
+          <div class="text-sm text-primary">★ {{ vet.rating or 0 }} · {{ vet.reviews_count or 0 }} reviews</div>
+        </div>
+      </div>
+      <div class="row row-wrap mt-4">
+        {% for s in (vet.specialties or [])[:3] %}{{ tag(s) }}{% endfor %}
+      </div>
+      <div class="row spread mt-4">
+        <div class="text-sm text-muted">{{ vet.clinic_name }} · {{ vet.distance_km }} km</div>
+        <div class="row row-wrap">
+          <a class="btn btn-outline btn-sm" href="{{ url_for('vet.detail', slug=vet.slug) }}">View vet</a>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('reviews.show', target_type='vet', target_id=vet.id) }}">Rate &amp; review</a>
+          <a class="btn btn-primary btn-sm" href="{{ url_for('vet_booking.book', slug=vet.slug) }}">Book</a>
+        </div>
+      </div>
+    </article>
+  {% else %}
+    <div class="card"><p class="text-muted mb-0">No vets match your search.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

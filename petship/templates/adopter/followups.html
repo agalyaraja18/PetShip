@@ -1,0 +1,51 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Adoption follow-ups · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Adoption follow-ups{% endblock %}
+{% block page_subtitle %}Shelter check-ins are scheduled for 7, 15, and 30 days after adoption.{% endblock %}
+{% block content %}
+<div class="grid grid-2">
+  <section class="card">
+    <h2 class="h3">Scheduled check-ins</h2>
+    {% for fu in followups %}
+      <article class="toggle-row">
+        <div class="row spread row-wrap">
+          <div>
+            <div class="fw-600">{{ fu.application.pet.name }} · {{ fu.milestone }}</div>
+            <div class="text-sm text-muted">
+              {{ fu.due_on.strftime('%d %b %Y at %I:%M %p UTC') }}
+            </div>
+          </div>
+          {{ badge(fu.status.label, 'success' if fu.status.value == 'done' else 'warning') }}
+        </div>
+        {% if fu.response %}
+          <p class="text-sm text-muted mb-0">{{ fu.response }}</p>
+        {% endif %}
+        {% if fu.id in actionable_ids %}
+          <form method="post" action="{{ url_for('adopter.respond_followup', fu_id=fu.id) }}" class="mt-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="outcome-{{ fu.id }}">How is {{ fu.application.pet.name }} settling in?</label>
+            <select id="outcome-{{ fu.id }}" name="outcome" required>
+              <option value="done">Doing well</option>
+              <option value="needs_support">Needs support from the shelter</option>
+            </select>
+            <label for="response-{{ fu.id }}">Details (optional)</label>
+            <textarea id="response-{{ fu.id }}" name="response" maxlength="1000" rows="3"></textarea>
+            <button class="btn btn-primary btn-sm mt-4" type="submit">Share check-in</button>
+          </form>
+        {% elif fu.status.value == 'due' %}
+          <p class="text-sm text-muted mb-0">This check-in will be available on its scheduled date.</p>
+        {% endif %}
+      </article>
+    {% else %}
+      <p class="text-muted mb-0">No post-adoption check-ins are scheduled yet.</p>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+    <h2 class="h3">Return Pet</h2>
+    <p class="text-sm text-muted">Submit a return request or track its status and collection visit.</p>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('adopter.returns') }}">Open return requests</a>
+  </section>
+</div>
+{% endblock %}

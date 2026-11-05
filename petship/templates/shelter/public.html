@@ -1,0 +1,66 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}{{ shelter.name }} · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pets.css') }}">
+{% endblock %}
+{% block content %}
+<div class="shelter-public-head card">
+  <div class="shelter-logo shelter-logo-lg">{{ shelter.name[:2]|upper }}</div>
+  <div class="shelter-public-id">
+    <h1 class="mb-0">{{ shelter.name }}
+      {% if shelter.is_verified %}{{ badge('✓ Verified', 'success') }}{% endif %}
+    </h1>
+    <p class="text-muted mb-0">
+      {{ shelter.city or '' }}
+      {%- if shelter.operating_since %} · Non-profit since {{ shelter.operating_since }}{% endif %}
+    </p>
+  </div>
+  {% if shelter.owner_id %}
+    <a class="btn btn-outline" href="{{ url_for('messages.start', user_id=shelter.owner_id) }}">Message</a>
+  {% endif %}
+</div>
+
+<div class="grid grid-4 mt-5">
+  <div class="stat-card"><div class="stat-value">{{ available|length }}</div><div class="stat-sub">Pets available</div></div>
+  <div class="stat-card"><div class="stat-value">{{ adopted }}</div><div class="stat-sub">Adopted</div></div>
+  <div class="stat-card"><div class="stat-value">{{ shelter.capacity or '—' }}</div><div class="stat-sub">Capacity</div></div>
+  <div class="stat-card"><div class="stat-value">{{ (shelter.avg_response_hours or 2)|int }} hrs</div><div class="stat-sub">Avg. reply</div></div>
+</div>
+
+<div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--space-5); margin-top: var(--space-5);">
+  <div>
+    <h2>Pets looking for a home</h2>
+    <div class="grid grid-3 mt-4">
+      {% for pet in available %}{% include 'pets/_pet_card.html' %}
+      {% else %}<p class="text-muted">No pets available right now.</p>{% endfor %}
+    </div>
+  </div>
+  <div class="card">
+    <h3>About us</h3>
+    <p class="text-muted">{{ shelter.about or 'This shelter hasn\'t added a description yet.' }}</p>
+    <a class="btn btn-outline btn-block mt-4" href="{{ url_for('reviews.show', target_type='shelter', target_id=shelter.id) }}">Read reviews</a>
+    <a class="btn btn-primary btn-block mt-3" href="{{ url_for('reviews.show', target_type='shelter', target_id=shelter.id) }}">Rate &amp; review</a>
+    {% if current_user.is_authenticated and current_user.role.value == 'adopter' %}
+      <details class="card mt-4">
+        <summary class="text-sm">Report a safety concern</summary>
+        <form class="mt-4" method="post" action="{{ url_for('reporting.report_provider', target_type='shelter', target_id=shelter.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="field">
+            <label for="shelter-report-reason">Reason</label>
+            <select id="shelter-report-reason" class="select" name="reason" required>
+              <option value="">Select a reason</option>
+              {% for reason in report_reasons %}<option value="{{ reason }}">{{ reason }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="shelter-report-details">Details (optional)</label>
+            <textarea id="shelter-report-details" class="textarea" name="details" maxlength="2000" rows="3"></textarea>
+          </div>
+          <button class="btn btn-outline btn-block" type="submit">Send report to admin</button>
+        </form>
+      </details>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends 'layouts/vet.html' %}
+{% block title %}New medical record · {{ APP_NAME }}{% endblock %}
+{% block page_title %}New medical record{% endblock %}
+{% block page_subtitle %}Create a record and share it with the owner{% endblock %}
+{% block content %}
+<form method="post" enctype="multipart/form-data" class="card" style="max-width: 760px;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid grid-2">
+    <div class="field"><label>Patient</label>
+      <select class="select" name="pet_id">
+        {% for p in pets %}<option value="{{ p.id }}">{{ p.name }} ({{ p.species }})</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>Record type</label>
+      <select class="select" name="record_type">
+        {% for rt in RecordType %}<option value="{{ rt.value }}">{{ rt.label }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="grid grid-2">
+    <div class="field"><label>Title</label><input class="input" name="title" placeholder="Complete blood panel"></div>
+    <div class="field"><label>Date</label><input class="input" type="date" name="record_date"></div>
+  </div>
+  <div class="field"><label>Examination findings</label><textarea class="textarea" name="findings"></textarea></div>
+  <div class="field"><label>Diagnosis</label><input class="input" name="diagnosis"></div>
+  <div class="field"><label>Summary (shared with owner)</label><textarea class="textarea" name="summary"></textarea></div>
+  <div class="field"><label>Lab report image</label><input class="input" type="file" name="lab_report" accept=".png,.jpg,.jpeg,.gif,.webp"></div>
+  <button class="btn btn-primary" type="submit">Save &amp; share with owner</button>
+</form>
+{% endblock %}

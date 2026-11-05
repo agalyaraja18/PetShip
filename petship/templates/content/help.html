@@ -1,0 +1,19 @@
+{% extends 'layouts/public.html' %}
+{% block title %}Help centre · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/content.css') }}">
+{% endblock %}
+{% block content %}
+<div class="help-hero text-center">
+  <h1>How can we help?</h1>
+  <input class="input help-search" type="search" name="q" value="{{ q }}"
+         placeholder="🔍 Search help articles"
+         hx-get="{{ url_for('content.help_centre') }}"
+         hx-target="#faq-list" hx-trigger="input changed delay:300ms, search"
+         hx-push-url="false">
+</div>
+
+<div id="faq-list" class="mt-5">
+  {% include 'content/_faq_list.html' %}
+</div>
+{% endblock %}

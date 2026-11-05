@@ -1,0 +1,90 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}{{ lesson.title }} · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lifestyle.css') }}">
+{% endblock %}
+{% block page_head %}{% endblock %}
+{% block content %}
+<div class="lesson-reader-layout">
+
+  {# ── Lesson Content ── #}
+  <article class="card lesson-reader">
+    {% if lesson.path.slug == 'swim-with-fish' and cover_image %}
+      <div class="learning-cover mb-4">
+        <img src="{{ url_for('static', filename=cover_image[0]) }}"
+             alt="{{ cover_image[1] }}" decoding="async">
+      </div>
+    {% endif %}
+    <div class="row spread mb-4">
+      <div>
+        <div class="text-xs text-primary fw-600 mb-1">📚 {{ lesson.path.title }}</div>
+        <h1 class="mb-0">{{ lesson.title }}</h1>
+      </div>
+      {% if is_done %}
+        {{ badge('Completed ✓', 'success') }}
+      {% endif %}
+    </div>
+
+    <div class="lesson-reader-body">
+      {% if lesson.body %}
+        {% for para in lesson.body.split('\n\n') %}
+          <p>{{ para | trim }}</p>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted">No content available for this lesson yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="row" style="gap: var(--space-3); margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--color-border);">
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('learning.path_detail', slug=lesson.path.slug) }}">← Back to {{ lesson.path.title }}</a>
+      {% if not is_done %}
+        <form method="post" action="{{ url_for('learning.complete_lesson', lesson_id=lesson.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-primary" type="submit">✓ Mark as done</button>
+        </form>
+      {% else %}
+        <span class="text-sm text-success fw-600">✓ You've completed this lesson</span>
+      {% endif %}
+    </div>
+  </article>
+
+  {# ── Sidebar: path progress & lesson list ── #}
+  <aside class="card">
+    <div class="fw-600 mb-3">📖 {{ lesson.path.title }}</div>
+    <div class="stack">
+      {% for le in unique_lessons %}
+        <a class="lesson-nav-item {{ 'is-current' if le.id == lesson.id }}"
+           href="{{ url_for('learning.lesson_view', lesson_id=le.id) }}">
+          <div class="lesson-nav-num">{{ le.position }}</div>
+          <div class="lesson-nav-title text-sm">{{ le.title }}</div>
+        </a>
+      {% endfor %}
+    </div>
+    <a class="btn btn-ghost btn-sm mt-5" href="{{ url_for('learning.paths') }}">← All paths</a>
+  </aside>
+
+</div>
+
+<style>
+.lesson-reader-layout { display: grid; grid-template-columns: 1fr 280px; gap: var(--space-5); align-items: start; }
+.lesson-reader { max-width: 100%; }
+.lesson-reader-body { line-height: 1.8; font-size: 1.05rem; color: var(--color-text); }
+.lesson-reader-body p { margin-bottom: var(--space-4); }
+.lesson-nav-item {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-md);
+  text-decoration: none; color: var(--color-text); transition: background 0.15s;
+}
+.lesson-nav-item:hover { background: var(--color-surface-muted); }
+.lesson-nav-item.is-current { background: var(--color-primary); color: #fff; }
+.lesson-nav-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--color-surface-muted); display: flex; align-items: center;
+  justify-content: center; font-size: 0.75rem; font-weight: 600; flex-shrink: 0;
+}
+.lesson-nav-item.is-current .lesson-nav-num { background: rgba(255,255,255,0.25); color: #fff; }
+.lesson-nav-title { flex: 1; }
+@media (max-width: 860px) { .lesson-reader-layout { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}

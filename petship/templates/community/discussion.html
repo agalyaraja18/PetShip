@@ -1,0 +1,71 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag, badge %}
+{% block title %}{{ post.title or 'Discussion' }} · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/community.css') }}">
+{% endblock %}
+{% block content %}
+<p class="text-sm text-muted"><a href="{{ url_for('community.feed') }}">Community</a> / {{ post.topic }}</p>
+
+<article class="card discussion-post">
+  <div class="row spread">
+    <a class="row post-author" href="{{ url_for('community.profile', user_id=post.author_id) }}">
+      <div class="avatar avatar-md profile-initials">{{ post.author.initials }}</div>
+      <div>
+        <div class="fw-600">{{ post.author.full_name }}
+          {% if post.author.role.value == 'vet' %}{{ badge('Verified vet', 'success') }}{% endif %}
+        </div>
+        <div class="text-sm text-muted">{{ post.created_at.strftime('%d %b %Y') }}
+          {%- if post.edited %} · edited{% endif %} · {{ tag(post.topic) }}</div>
+      </div>
+    </a>
+    {% if current_user.is_authenticated and current_user.id == post.author_id %}
+      <a class="btn btn-outline btn-sm" href="{{ url_for('community.edit', post_id=post.id) }}">Edit</a>
+    {% endif %}
+  </div>
+  {% if post.title %}<h1 class="mt-4">{{ post.title }}</h1>{% endif %}
+  <p>{{ post.body }}</p>
+  {% if post.photos %}<div class="post-photo" style="background-image:url('{{ post.photos[0] }}')"></div>{% endif %}
+  <div class="row post-actions mt-4">
+    {% with liked = post.id in liked %}{% include 'community/_like_button.html' %}{% endwith %}
+    <span class="post-action">💬 {{ post.comment_count }} comments</span>
+  </div>
+</article>
+
+<section class="card mt-4">
+  <h3>{{ top_level|length }} comments</h3>
+  {% if current_user.is_authenticated %}
+    <form method="post" action="{{ url_for('community.comment', post_id=post.id) }}" class="comment-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input class="input" name="body" placeholder="Add a comment..." required>
+      <button class="btn btn-primary" type="submit">Reply</button>
+    </form>
+  {% endif %}
+
+  <div class="stack mt-4">
+    {% for c in top_level %}
+      <div class="comment">
+        <div class="row" style="gap: var(--space-3);">
+          <div class="avatar avatar-sm profile-initials">{{ c.author.initials }}</div>
+          <div style="flex:1;">
+            <div class="fw-600 text-sm">{{ c.author.full_name }}
+              {% if c.author.role.value == 'vet' %}{{ badge('Verified vet', 'success') }}{% endif %}
+            </div>
+            <p class="mb-0">{{ c.body }}</p>
+          </div>
+        </div>
+        {% for r in replies.get(c.id, []) %}
+          <div class="comment reply">
+            <div class="row" style="gap: var(--space-3);">
+              <div class="avatar avatar-sm profile-initials">{{ r.author.initials }}</div>
+              <div><div class="fw-600 text-sm">{{ r.author.full_name }}</div><p class="mb-0">{{ r.body }}</p></div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-muted mb-0">No comments yet.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

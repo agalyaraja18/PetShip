@@ -1,0 +1,92 @@
+{% extends 'layouts/public.html' %}
+{% block title %}Book a vet visit · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/vet.css') }}">
+{% endblock %}
+{% block content %}
+<script type="application/json" id="booking-prices">{{ prices|tojson }}</script>
+<form method="post" class="booking-layout" x-data="booking()">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="card">
+    <h1 class="mb-0">Book a vet visit</h1>
+    <p class="text-muted">Choose a service and time with {{ vet.display_name }}.</p>
+
+    <div class="field">
+      <label>Pet</label>
+      <input class="input" name="pet_name" value="{{ selected.get('pet_name', '') }}" placeholder="Your pet's name (e.g. Mochi)">
+    </div>
+
+    <div class="field">
+      <label>Service</label>
+      <div class="row row-wrap">
+        {% for key, label in services %}
+          <label class="pill" :class="{ 'is-active': service === '{{ key }}' }" @click="service = '{{ key }}'">
+            <input type="radio" name="service" value="{{ key }}" x-model="service" hidden>{{ label }}
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Date</label>
+      <div class="row row-wrap">
+        {% for d in date_options %}
+          <label class="pill date-pill" :class="{ 'is-active': date === '{{ d.isoformat() }}' }" @click="date = '{{ d.isoformat() }}'">
+            <input type="radio" name="date" value="{{ d.isoformat() }}" x-model="date" hidden>
+            <span class="date-dow">{{ d.strftime('%a') }}</span>
+            <span class="date-num">{{ d.strftime('%d') }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Time</label>
+      <div class="row row-wrap">
+        {% for slot in slots %}
+          <label class="pill" :class="{ 'is-active': slot === '{{ slot }}' }" @click="slot = '{{ slot }}'">
+            <input type="radio" name="slot" value="{{ slot }}" x-model="slot" hidden>{{ slot }}
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <aside class="card booking-summary">
+    <div class="row" style="gap: var(--space-3);">
+      {% if vet.photo_url %}<img class="avatar avatar-md" src="{{ vet.photo_url }}" alt="">
+      {% else %}<div class="avatar avatar-md profile-initials">{{ vet.display_name.split(' ')[-1][0] }}</div>{% endif %}
+      <div>
+        <div class="fw-600">{{ vet.display_name }}</div>
+        <div class="text-sm text-muted">{{ vet.clinic_name }} · ★ {{ vet.rating }}</div>
+      </div>
+    </div>
+    <div class="summary-rows mt-5">
+      <div class="row spread"><span class="text-muted">Service</span><strong x-text="serviceLabel"></strong></div>
+      <div class="row spread"><span class="text-muted">Date</span><strong x-text="date || '—'"></strong></div>
+      <div class="row spread"><span class="text-muted">Time</span><strong x-text="slot || '—'"></strong></div>
+      <div class="row spread summary-total"><span>Total</span><strong x-text="'₹' + price"></strong></div>
+    </div>
+    <button class="btn btn-primary btn-block btn-lg mt-4" type="submit">Confirm booking</button>
+    <p class="text-sm text-muted text-center mt-4">Free cancellation up to 4 hours before</p>
+  </aside>
+</form>
+
+<script>
+  function booking() {
+    const prices = JSON.parse(document.getElementById('booking-prices').textContent);
+    const baseFee = {{ vet.consult_fee|int if vet.consult_fee else 500 }};
+    const labels = {
+      {% for key, label in services %}'{{ key }}': '{{ label }}',{% endfor %}
+    };
+    return {
+      service: {{ selected.get('service', 'general')|tojson }},
+      date: {{ selected.get('date', '')|tojson }}, slot: '',
+      prices: prices,
+      get serviceLabel() { return labels[this.service] || '—'; },
+      get price() { return this.prices[this.service] || baseFee; },
+    };
+  }
+</script>
+{% endblock %}

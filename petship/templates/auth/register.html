@@ -1,0 +1,87 @@
+{% extends 'auth/_auth_base.html' %}
+{% from 'partials/macros.html' import field %}
+{% block title %}Create your account · {{ APP_NAME }}{% endblock %}
+
+{% block visual %}
+  <div class="auth-quote">
+    <p>Join PetShip.</p>
+    <div class="cite">Find a pet, list a pet, or offer care.</div>
+  </div>
+{% endblock %}
+
+{% block panel %}
+<h1>Create your account</h1>
+<p class="text-muted">Choose your role to see the registration details we need.</p>
+
+<form method="post" enctype="multipart/form-data"
+      x-data="{ role: '{{ form.role.data or 'adopter' }}' }">
+  {{ form.hidden_tag() }}
+
+  <div class="field">
+    <label>I am joining as</label>
+    <div class="role-toggle">
+      {% for value, label in [('adopter','Adopter'), ('shelter','Shelter'), ('vet','Vet')] %}
+        <label :class="{ 'is-selected': role === '{{ value }}' }">
+          <input type="radio" name="role" value="{{ value }}" x-model="role"
+                 {{ 'checked' if form.role.data == value }}>
+          {{ label }}
+        </label>
+      {% endfor %}
+    </div>
+    {% for error in form.role.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+  </div>
+
+  <div class="grid grid-2">
+    {{ field(form.phone) }}
+    {{ field(form.email) }}
+  </div>
+  <div x-show="role !== 'vet'">
+    {{ field(form.address) }}
+  </div>
+
+  <section x-show="role === 'adopter'">
+    <h2 class="h3">Adopter details</h2>
+    <div class="field"><label for="{{ form.full_name.id }}">Full name</label>{{ form.full_name(class='input', **{'x-bind:required': "role === 'adopter'"}) }}</div>
+    {{ field(form.password, hint='At least 8 characters') }}
+  </section>
+
+  <section x-show="role === 'shelter'" style="display:none;">
+    <h2 class="h3">Shelter details</h2>
+    {{ field(form.shelter_name) }}
+    {{ field(form.owner_name) }}
+    <div class="field">
+      <label for="shelter-photos">Shelter photos</label>
+      <input class="input" id="shelter-photos" type="file" name="shelter_photos"
+             accept="image/png,image/jpeg,image/gif,image/webp" multiple>
+      <div class="field-hint">Upload one or more PNG, JPG, GIF, or WebP images.</div>
+    </div>
+  </section>
+
+  <section x-show="role === 'vet'" style="display:none;">
+    <h2 class="h3">Veterinarian details</h2>
+    {{ field(form.vet_name) }}
+    {{ field(form.clinic_name) }}
+    {{ field(form.clinic_address) }}
+    <div class="field">
+      <label for="vet-certificate">Doctor certificate photo</label>
+      <input class="input" id="vet-certificate" type="file" name="certificate_photo"
+             accept="image/png,image/jpeg,image/gif,image/webp">
+    </div>
+  </section>
+
+  <div class="field mt-4">
+    <label class="row" style="gap: 8px; font-weight: 400;">
+      {{ form.agree() }} <span>I agree to the
+        <a href="{{ url_for('legal.terms') }}">Terms &amp; Conditions</a> and
+        <a href="{{ url_for('legal.privacy') }}">Privacy Policy</a></span>
+    </label>
+    {% for error in form.agree.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+  </div>
+
+  <button type="submit" class="btn btn-primary btn-block btn-lg">Continue registration</button>
+</form>
+
+<p class="auth-foot text-center">
+  Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a>
+</p>
+{% endblock %}

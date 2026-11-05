@@ -1,0 +1,44 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag %}
+{% block title %}Search · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pets.css') }}">
+{% endblock %}
+
+{% block content %}
+<form class="search-bar card" method="get" action="{{ url_for('pets.search') }}">
+  <input class="input" name="q" value="{{ q }}" placeholder="&quot;calm dog good with kids&quot;">
+  <input class="input" name="location" value="{{ location }}" placeholder="Chennai" style="max-width: 220px;">
+  <button class="btn btn-primary" type="submit">Search</button>
+</form>
+
+<p class="text-muted mt-4"><strong>{{ count }}</strong> results{% if q %} for &ldquo;{{ q }}&rdquo;{% endif %}</p>
+
+<div class="search-results">
+  {% for pet in results %}
+    <article class="card search-result">
+      <a class="search-thumb" href="{{ url_for('pets.detail', pet_id=pet.id) }}">
+        {% if pet.primary_photo %}
+          <img src="{{ pet.primary_photo }}" alt="{{ pet.name }}">
+        {% else %}
+          <div class="pet-card-placeholder" data-species="{{ pet.species.value }}"><span>{{ pet.name[0] }}</span></div>
+        {% endif %}
+      </a>
+      <div class="search-body">
+        <h3 class="mb-0"><a href="{{ url_for('pets.detail', pet_id=pet.id) }}">{{ pet.name }}</a></h3>
+        <p class="text-sm text-muted mb-0">
+          {{ pet.breed or pet.species.label }} · {{ pet.age_text }} · {{ pet.sex.label }}
+          {%- if pet.distance_km %} · {{ pet.distance_km|int }} km{% endif %}
+        </p>
+        <p class="text-sm mb-0">{{ pet.description }}</p>
+        <div class="row row-wrap mt-4">
+          {% for t in (pet.personality_tags or [])[:2] %}{{ tag(t) }}{% endfor %}
+          {% for t in (pet.health_tags or [])[:1] %}{{ tag(t) }}{% endfor %}
+        </div>
+      </div>
+    </article>
+  {% else %}
+    <div class="card"><p class="text-muted mb-0">No pets matched your search. Try different words or <a href="{{ url_for('pets.browse') }}">browse all pets</a>.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

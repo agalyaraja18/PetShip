@@ -1,0 +1,11 @@
+{% extends 'layouts/vet.html' %}
+{% set active_nav = 'dashboard' %}
+{% block title %}Vet dashboard · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Today's schedule{% endblock %}
+{% block page_subtitle %}{% endblock %}
+{% block content %}
+<div class="card">
+  <p class="mb-0">You're logged in as a <strong>Veterinarian</strong>. The full dashboard arrives in Phase 4.</p>
+  <a class="btn btn-ghost mt-4" href="{{ url_for('auth.logout') }}">Log out</a>
+</div>
+{% endblock %}

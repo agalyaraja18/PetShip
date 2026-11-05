@@ -1,0 +1,27 @@
+{% from 'partials/macros.html' import tag %}
+{#  A reusable adoptable-pet card. Expects `pet`. #}
+<article class="pet-card">
+  <a class="pet-card-media" href="{{ url_for('pets.detail', pet_id=pet.id) }}" aria-label="{{ pet.name }}">
+    {% if pet.primary_photo %}
+      <img src="{{ pet.primary_photo }}" alt="{{ pet.name }}">
+    {% else %}
+      <div class="pet-card-placeholder" data-species="{{ pet.species.value }}">
+        <span>{{ pet.name[0] }}</span>
+      </div>
+    {% endif %}
+  </a>
+  {% with is_fav = pet.id in fav_ids %}{% include 'pets/_fav_button.html' %}{% endwith %}
+  <div class="pet-card-body">
+    <div class="row spread">
+      <h3 class="mb-0"><a href="{{ url_for('pets.detail', pet_id=pet.id) }}">{{ pet.name }}</a></h3>
+    </div>
+    <p class="text-sm text-muted mb-0">
+      {{ pet.breed or pet.species.label }} · {{ pet.age_text or pet.age_group.label }}
+      {%- if pet.distance_km %} · {{ pet.distance_km | int }} km{% endif %}
+    </p>
+    <div class="row row-wrap mt-4">
+      {% for t in (pet.personality_tags or [])[:1] %}{{ tag(t) }}{% endfor %}
+      {% for t in (pet.health_tags or [])[:1] %}{{ tag(t) }}{% endfor %}
+    </div>
+  </div>
+</article>

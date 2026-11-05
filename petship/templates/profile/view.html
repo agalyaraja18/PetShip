@@ -1,0 +1,91 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import tag, badge %}
+{% block title %}My profile · {{ APP_NAME }}{% endblock %}
+{% block page_head %}{% endblock %}
+{% block content %}
+<div class="card card-flush mb-5">
+  <div class="profile-cover"></div>
+  <div class="profile-head">
+    {% if user.avatar_url %}
+      <img class="avatar avatar-lg profile-avatar" src="{{ user.avatar_url }}" alt="{{ user.full_name }}">
+    {% else %}
+      <div class="avatar avatar-lg profile-avatar profile-initials">{{ user.initials }}</div>
+    {% endif %}
+    <div class="profile-id">
+      <h1 class="mb-0">{{ user.full_name }}</h1>
+      <p class="text-muted mb-0">
+        {{ user.address or user.city or 'Somewhere lovely' }} · Member since {{ user.created_at.year }}
+        {% if user.is_verified %} · {{ badge('✓ Verified ' ~ user.role.label.lower(), 'success') }}{% endif %}
+      </p>
+    </div>
+    <a class="btn btn-outline" href="{{ url_for('profile.edit') }}">Edit profile</a>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>Bio</h3>
+    <p class="text-muted">{{ user.bio or 'No bio yet. Tell the community about yourself and your pets.' }}</p>
+  </div>
+  <div class="card">
+    <h3>Personal details</h3>
+    <div class="stack text-sm">
+      <div class="row spread"><span class="text-muted">Email</span>
+        <strong>{{ user.email }}</strong></div>
+      <div class="row spread"><span class="text-muted">Phone number</span>
+        <strong>{{ user.phone or '—' }}</strong></div>
+      <div class="row spread"><span class="text-muted">Address</span>
+        <strong>{{ user.address or '—' }}</strong></div>
+      <div class="row spread"><span class="text-muted">City</span>
+        <strong>{{ user.city or '—' }}</strong></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Home &amp; lifestyle</h3>
+    <div class="stack text-sm">
+      <div class="row spread"><span class="text-muted">Home type</span>
+        <strong>{{ 'Apartment' if user.has_tag('Apartment') else ('House with yard' if user.has_tag('House with yard') else '—') }}</strong></div>
+      <div class="row spread"><span class="text-muted">Has kids</span>
+        <strong>{{ 'Yes' if user.has_tag('Has kids') else 'No' }}</strong></div>
+      <div class="row spread"><span class="text-muted">Works from home</span>
+        <strong>{{ 'Yes' if user.has_tag('Works from home') else 'No' }}</strong></div>
+      <div class="row spread"><span class="text-muted">Has dogs</span>
+        <strong>{{ 'Yes' if user.has_tag('Has dogs') else 'No' }}</strong></div>
+      <div class="row spread"><span class="text-muted">Has cats</span>
+        <strong>{{ 'Yes' if user.has_tag('Has cats') else 'No' }}</strong></div>
+      <div class="row spread"><span class="text-muted">First-time owner</span>
+        <strong>{{ 'Yes' if user.has_tag('First-time owner') else 'No' }}</strong></div>
+    </div>
+    {% set displayed_tags = ['Apartment', 'House with yard', 'Has kids', 'Works from home', 'Has dogs', 'Has cats', 'First-time owner'] %}
+    {% set other_tags = user.tags | reject('in', displayed_tags) | list %}
+    {% if other_tags %}
+      <div class="row row-wrap mt-3">
+        {% for t in other_tags %}{{ tag(t) }}{% endfor %}
+      </div>
+    {% endif %}
+  </div>
+  <div class="card">
+    <h3>My Pet</h3>
+    <div class="stack">
+      {% for pet in pets %}
+        <a class="row spread toggle-row" href="{{ url_for('adopter.pet_profile', pet_id=pet.id) }}" style="color:inherit;text-decoration:none;">
+          <div class="row" style="gap: var(--space-3);">
+            {% if pet.photo_url %}
+              <img class="avatar avatar-md" src="{{ pet.photo_url }}" alt="">
+            {% else %}
+              <div class="avatar avatar-md profile-initials">{{ pet.name[0] }}</div>
+            {% endif %}
+            <div>
+              <div class="fw-600">{{ pet.name }}</div>
+              <div class="text-sm text-muted">{{ pet.species or 'Pet' }}{% if pet.breed %} · {{ pet.breed }}{% endif %}</div>
+            </div>
+          </div>
+          <span class="text-sm text-primary">View profile →</span>
+        </a>
+      {% else %}
+        <p class="text-muted mb-0">Your pets will appear here.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

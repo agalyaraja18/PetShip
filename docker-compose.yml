@@ -1,0 +1,51 @@
+# ============================================================================
+# PetShip - development stack (app + PostgreSQL + Redis)
+# Usage: docker compose up --build
+# ============================================================================
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: petship
+      POSTGRES_PASSWORD: petship
+      POSTGRES_DB: petship
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U petship"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      FLASK_CONFIG: production
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-prod}
+      DATABASE_URL: postgresql+psycopg://petship:petship@db:5432/petship
+      REDIS_URL: redis://redis:6379/0
+      SOCKETIO_ASYNC_MODE: eventlet
+      # Keyed integrations are optional; leave unset for free local operation.
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-console}
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:

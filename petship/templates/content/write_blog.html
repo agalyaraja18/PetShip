@@ -1,0 +1,35 @@
+{% extends 'layouts/public.html' %}
+{% block title %}Write a blog post · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/content.css') }}">
+{% endblock %}
+{% block content %}
+<div style="max-width: 720px; margin: 0 auto;">
+  <h1>✏️ Write a blog post</h1>
+  <p class="text-muted">Share your knowledge and stories with the PetShip community.</p>
+  <form method="post" enctype="multipart/form-data" class="card">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field"><label>Title</label><input class="input" name="title" required placeholder="e.g. How to introduce a new cat to your home"></div>
+    <div class="field"><label>Category</label>
+      <select class="select" name="category">
+        {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label>Cover Photo <span class="text-muted">(optional)</span></label>
+      <div class="upload-drop" onclick="document.getElementById('blog-photo').click()">
+        <div style="font-size: 2rem;">🖼️</div>
+        <div class="fw-600">Click to upload cover image</div>
+        <div class="text-sm text-muted">JPG, PNG, WebP — max 5 MB</div>
+        <input type="file" id="blog-photo" name="cover_photo" accept="image/*" style="display:none"
+               onchange="document.getElementById('blog-photo-name').textContent = this.files[0]?.name || ''">
+      </div>
+      <div id="blog-photo-name" class="text-sm text-muted mt-1"></div>
+    </div>
+    <div class="field"><label>Body</label>
+      <textarea class="textarea" name="body" rows="12" required
+        placeholder="Write your article. Separate paragraphs with a blank line."></textarea></div>
+    <button class="btn btn-primary" type="submit">Publish post</button>
+  </form>
+</div>
+{% endblock %}

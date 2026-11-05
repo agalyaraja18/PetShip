@@ -1,0 +1,14 @@
+{#  Heart toggle button. Expects `pet` and `is_fav`.
+    For anonymous users it links to login; for authenticated users it posts
+    via htmx and swaps itself. #}
+{% if current_user.is_authenticated %}
+  <button class="pet-fav {{ 'is-fav' if is_fav }}" type="button"
+          hx-post="{{ url_for('favourites.toggle', pet_id=pet.id) }}"
+          hx-swap="outerHTML"
+          aria-label="{{ 'Remove from favourites' if is_fav else 'Save ' ~ pet.name }}">
+    {{ '♥' if is_fav else '♡' }}
+  </button>
+{% else %}
+  <a class="pet-fav" href="{{ url_for('auth.login', next=url_for('pets.browse')) }}"
+     aria-label="Log in to save {{ pet.name }}">♡</a>
+{% endif %}

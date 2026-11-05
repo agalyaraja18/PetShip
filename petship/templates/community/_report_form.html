@@ -1,0 +1,26 @@
+{#  Report modal body. Expects `post` in context (feed/discussion). #}
+<form method="post" action="{{ url_for('community.report') }}" class="report-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="target_type" value="post">
+  <input type="hidden" name="target_id" value="{{ post.id }}">
+  <input type="hidden" name="target_label" value="{{ (post.title or post.body)[:80] }}">
+  <div class="row spread">
+    <h3 class="mb-0">Report this post</h3>
+    <button type="button" class="btn btn-ghost btn-sm"
+            onclick="this.closest('dialog').close()">✕</button>
+  </div>
+  <p class="text-sm text-muted">Reports are confidential. Our team reviews every report within 24 hours.</p>
+  <div class="field">
+    {% for reason in ['Selling animals for profit','Suspected animal abuse or neglect','Fake or misleading information','Harassment','Something else'] %}
+      <label class="report-reason">
+        <input type="radio" name="reason" value="{{ reason }}" {{ 'checked' if loop.first }}>
+        {{ reason }}
+      </label>
+    {% endfor %}
+  </div>
+  <textarea class="textarea" name="details" placeholder="Add details to help us investigate (optional)"></textarea>
+  <div class="row spread mt-4">
+    <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Cancel</button>
+    <button type="submit" class="btn btn-primary">Submit report</button>
+  </div>
+</form>

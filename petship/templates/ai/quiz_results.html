@@ -1,0 +1,47 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import progress %}
+{% block title %}You're a {{ result.name }} · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ai.css') }}">
+{% endblock %}
+{% block content %}
+<div class="quiz-result-layout">
+  <div class="card text-center quiz-result-hero">
+    <div class="readiness-ring" style="--pct: {{ result.readiness }}">
+      <div class="readiness-inner">
+        <div class="readiness-num">{{ result.readiness }}%</div>
+        <div class="text-sm text-muted">ready to adopt</div>
+      </div>
+    </div>
+    <h1 class="mt-4">You're a <span class="text-primary">"{{ result.name }}"</span></h1>
+    <p class="text-muted">{{ result.description }}</p>
+    <a class="btn btn-primary btn-lg" href="{{ url_for('ai.results') }}">See matching pets</a>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <h3>Your profile</h3>
+      {% for b in bars %}
+        <div class="row spread text-sm mt-4"><span>{{ b.label }}</span><strong>{{ b.text }}</strong></div>
+        {{ progress(b.value) }}
+      {% endfor %}
+    </div>
+    <div class="card">
+      <h3>Best pet types for you</h3>
+      <div class="grid grid-3 mt-4">
+        {% for name, note in result.best %}
+          <div class="best-type">
+            {% set image = best_type_images.get(name) %}
+            {% if image %}
+              <img class="best-type-art" src="{{ url_for('static', filename=image[0]) }}"
+                   alt="{{ image[1] }}" loading="lazy" decoding="async">
+            {% endif %}
+            <div class="fw-600 mt-4">{{ name }}</div>
+            <div class="text-sm text-muted">{{ note }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

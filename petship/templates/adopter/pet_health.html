@@ -1,0 +1,257 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}{{ pet.name }}'s Health · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/health.css') }}">
+{% endblock %}
+{% block page_head %}{% endblock %}
+{% block content %}
+
+{# ── Pet header ── #}
+<div class="card mb-5">
+  <div class="row spread">
+    <div class="row" style="gap: var(--space-4);">
+      {% if pet.photo_url %}
+        <img class="avatar avatar-lg" src="{{ pet.photo_url }}" alt="{{ pet.name }}">
+      {% else %}
+        <div class="avatar avatar-lg profile-initials">{{ pet.name[0] | upper }}</div>
+      {% endif %}
+      <div>
+        <h1 class="mb-0">{{ pet.name }}'s Health</h1>
+        <p class="text-sm text-muted mb-0">
+          {{ pet.breed or pet.species }}
+          {% if pet.age_text %} · {{ pet.age_text }}{% endif %}
+          {% if pet.weight_kg %} · {{ pet.weight_kg }} kg{% endif %}
+        </p>
+      </div>
+    </div>
+    <div class="row" style="gap: var(--space-2);">
+      <a class="btn btn-outline btn-sm" href="{{ url_for('adopter.pet_profile', pet_id=pet.id) }}">← Profile</a>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('adopter.my_pets') }}">My Pets</a>
+    </div>
+  </div>
+</div>
+
+<div class="health-overview-grid">
+  <section class="card health-count-card count-vaccinations-done">
+    <h3>Vaccinations done</h3><strong>{{ past_vaccs | length }}</strong>
+  </section>
+  <section class="card health-count-card count-vaccinations-due">
+    <h3>Upcoming / due</h3><strong>{{ upcoming_vaccs | length }}</strong>
+  </section>
+
+  <section class="card health-count-card count-checkups-past">
+    <h3>Past checkups</h3><strong>{{ past_checkup_count }}</strong>
+  </section>
+  <section class="card health-count-card count-checkups-upcoming">
+    <h3>Upcoming / due</h3><strong>{{ upcoming_checkup_count }}</strong>
+  </section>
+
+  <section class="card health-count-card count-surgery-done">
+    <h3>Surgeries done</h3><strong>{{ surgery_count }}</strong>
+  </section>
+  <section class="card health-count-card count-surgery-upcoming">
+    <h3>Upcoming / due</h3><strong>{{ upcoming_surgery_count }}</strong>
+  </section>
+
+  <section class="card health-summary-card health-past-vaccinations">
+    <div class="health-summary-head"><h3>Past Vaccinations</h3><span>{{ past_vaccs | length }}</span></div>
+    {% for vaccination in past_vaccs[:5] %}
+      <div class="summary-line">{{ vaccination.name }}<span class="summary-date">{% if vaccination.due_on %}{{ vaccination.due_on.strftime('%d %b %Y') }}{% endif %}</span></div>
+    {% else %}
+      <div class="summary-empty">No past vaccinations</div>
+    {% endfor %}
+  </section>
+
+  <section class="card health-summary-card health-upcoming-vaccinations">
+    <div class="health-summary-head"><h3>Vaccination - Upcoming</h3><span>{{ upcoming_vaccs | length }}</span></div>
+    {% for vaccination in upcoming_vaccs[:5] %}
+      <div class="summary-line">{{ vaccination.name }}<span class="summary-date">{% if vaccination.due_on %}{{ vaccination.due_on.strftime('%d %b %Y') }}{% endif %}</span></div>
+    {% else %}
+      <div class="summary-empty">No upcoming vaccinations</div>
+    {% endfor %}
+  </section>
+
+  <section class="card health-summary-card health-prescriptions-past">
+    <div class="health-summary-head"><h3>Prescribed medicines - Past</h3><span>{{ past_prescriptions | length }}</span></div>
+    {% for prescription in past_prescriptions[:5] %}
+      <div class="summary-line">{{ prescription.medicines }}<span class="summary-date">{{ prescription.date.strftime('%d %b %Y') }}</span></div>
+    {% else %}
+      <div class="summary-empty">No past prescriptions</div>
+    {% endfor %}
+  </section>
+
+  <section class="card health-summary-card health-prescriptions-current">
+    <div class="health-summary-head"><h3>Prescribed medicines</h3><span>{{ present_prescriptions | length }}</span></div>
+    {% for prescription in present_prescriptions[:5] %}
+      <div class="summary-line">{{ prescription.medicines }}<span class="summary-date">{{ prescription.date.strftime('%d %b %Y') }}</span></div>
+    {% else %}
+      <div class="summary-empty">No medicines prescribed today</div>
+    {% endfor %}
+  </section>
+
+  <section class="card health-summary-card health-surgeries-past">
+    <div class="health-summary-head"><h3>Surgeries done</h3><span>{{ surgery_count }}</span></div>
+    {% for record in past_records if record.record_type == RecordType.SURGERY %}
+      <div class="summary-line">{{ record.title }}<span class="summary-date">{{ record.record_date.strftime('%d %b %Y') }}</span></div>
+    {% else %}
+      <div class="summary-empty">No surgeries completed</div>
+    {% endfor %}
+  </section>
+
+  <section class="card health-summary-card health-surgeries-upcoming">
+    <div class="health-summary-head"><h3>Surgeries - Upcoming</h3><span>{{ upcoming_surgery_count }}</span></div>
+    {% for record in upcoming_records if record.record_type == RecordType.SURGERY %}
+      <div class="summary-line">{{ record.title }}<span class="summary-date">{{ record.record_date.strftime('%d %b %Y') }}</span></div>
+    {% else %}
+      <div class="summary-empty">No upcoming surgery</div>
+    {% endfor %}
+  </section>
+
+  <section class="card health-summary-card health-appointments-card">
+    <div class="health-summary-head"><h3>Appointments</h3><span>{{ upcoming_appointments | length }}</span></div>
+    {% for appointment in upcoming_appointments[:6] %}
+      <div class="summary-line">{{ appointment.service }}<span class="summary-date">{{ appointment.scheduled_for.strftime('%d %b %Y, %I:%M %p') }}</span></div>
+    {% else %}
+      <div class="summary-empty">No upcoming appointments</div>
+    {% endfor %}
+  </section>
+
+  <section class="card lab-reports-card health-lab-card">
+    <div class="health-summary-head"><h3>Lab reports</h3><span>{{ lab_reports | length }}</span></div>
+    <div class="lab-report-list">
+      {% for report in lab_reports %}
+        <details class="lab-report-details">
+          <summary class="lab-report-row">
+            <div><strong>{{ report.title }}</strong><div class="text-xs text-muted">{{ report.record_date.strftime('%d %b %Y') }}</div></div>
+            <span class="btn btn-outline btn-sm">View</span>
+          </summary>
+          <div class="lab-inline-viewer">
+            {% set image_attachment = namespace(value=none) %}
+            {% for attachment in report.attachments or [] %}
+              {% if attachment is string and attachment.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')) %}
+                {% set image_attachment.value = attachment %}
+              {% endif %}
+            {% endfor %}
+            {% if image_attachment.value %}
+              <img src="{{ image_attachment.value }}" alt="{{ report.title }}">
+            {% else %}
+              <div class="lab-preview-placeholder">{{ report.title }}</div>
+            {% endif %}
+          </div>
+        </details>
+      {% else %}
+        <div class="summary-empty">No lab reports shared</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card health-summary-card health-medical-card">
+    <div class="health-summary-head"><h3>Past checkups / Medical reports</h3><span>{{ past_health_records | length }}</span></div>
+    {% if past_health_records %}
+      {% for record in past_health_records[:8] %}
+        <article class="medical-report-row">
+          <div><strong>{{ record.title }}</strong><div class="text-xs text-muted">{{ record.record_date.strftime('%d %b %Y') }}</div></div>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('adopter.pet_health_record', pet_id=pet.id, record_id=record.id) }}">View</a>
+        </article>
+      {% endfor %}
+    {% else %}
+      <div class="summary-empty">No medical reports</div>
+    {% endif %}
+  </section>
+</div>
+
+<style>
+.health-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "vacc-done vacc-due"
+    "checkups-past checkups-upcoming"
+    "surgery-done surgery-upcoming"
+    "past-vaccinations upcoming-vaccinations"
+    "past-medicines current-medicines"
+    "past-surgeries upcoming-surgeries"
+    "appointments appointments"
+    "lab lab"
+    "medical medical";
+  gap: var(--space-4);
+  align-items: start;
+}
+.health-count-card {
+  min-height: 78px;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.health-count-card h3 { margin: 0; font-size: 1rem; }
+.health-count-card strong {
+  min-width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  font-size: 1rem;
+}
+.count-vaccinations-done { grid-area: vacc-done; }
+.count-vaccinations-due { grid-area: vacc-due; }
+.count-checkups-past { grid-area: checkups-past; }
+.count-checkups-upcoming { grid-area: checkups-upcoming; }
+.count-surgery-done { grid-area: surgery-done; }
+.count-surgery-upcoming { grid-area: surgery-upcoming; }
+.health-past-vaccinations { grid-area: past-vaccinations; }
+.health-upcoming-vaccinations { grid-area: upcoming-vaccinations; }
+.health-prescriptions-past { grid-area: past-medicines; }
+.health-prescriptions-current { grid-area: current-medicines; }
+.health-surgeries-past { grid-area: past-surgeries; }
+.health-surgeries-upcoming { grid-area: upcoming-surgeries; }
+.health-appointments-card { grid-area: appointments; }
+.health-lab-card { grid-area: lab; }
+.health-medical-card { grid-area: medical; }
+.health-summary-card { padding: var(--space-4); }
+.lab-reports-card { padding: var(--space-4); }
+.health-summary-head { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-border); }
+.health-summary-head + .health-summary-head { margin-top: var(--space-2); }
+.health-summary-head h3 { margin: 0; font-size: 1rem; }
+.health-summary-head > span { min-width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--color-surface-muted); font-weight: 700; }
+.summary-line { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 38px; padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border); font-size: .88rem; }
+.summary-date { color: var(--color-text-muted); font-size: .78rem; white-space: nowrap; }
+.summary-empty { padding: var(--space-3) 0 0; color: var(--color-text-muted); font-size: .88rem; }
+.lab-report-list { display: grid; gap: var(--space-2); padding-top: var(--space-3); }
+.lab-report-details { border-bottom: 1px solid var(--color-border); }
+.lab-report-details:last-child { border-bottom: 0; }
+.lab-report-details summary { list-style: none; cursor: pointer; }
+.lab-report-details summary::-webkit-details-marker { display: none; }
+.lab-report-row, .medical-report-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 54px; padding: var(--space-2) 0; }
+.lab-inline-viewer { padding: 0 0 var(--space-3); }
+.lab-inline-viewer img { display: block; width: 100%; max-height: 420px; object-fit: contain; border-radius: var(--radius-md); background: var(--color-surface-muted); }
+.lab-preview-placeholder { min-height: 180px; display: grid; place-items: center; border-radius: var(--radius-md); background: var(--color-surface-muted); color: var(--color-text-muted); }
+.lab-report-row:last-child, .medical-report-row:last-child { border-bottom: 0; }
+@media (max-width: 900px) {
+  .health-overview-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "vacc-done"
+      "vacc-due"
+      "checkups-past"
+      "checkups-upcoming"
+      "surgery-done"
+      "surgery-upcoming"
+      "past-vaccinations"
+      "upcoming-vaccinations"
+      "past-medicines"
+      "current-medicines"
+      "past-surgeries"
+      "upcoming-surgeries"
+      "appointments"
+      "lab"
+      "medical";
+  }
+}
+@media (max-width: 560px) { .lab-report-row, .medical-report-row { align-items: flex-start; } }
+</style>
+{% endblock %}

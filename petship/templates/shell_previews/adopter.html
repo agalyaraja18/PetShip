@@ -1,0 +1,15 @@
+{% extends 'layouts/adopter.html' %}
+{% set active_nav = 'dashboard' %}
+{% from 'partials/macros.html' import stat_card %}
+{% block title %}Adopter shell preview{% endblock %}
+{% block page_title %}Good morning, Agalya{% endblock %}
+{% block page_subtitle %}Here's what's happening with your pets today.{% endblock %}
+{% block content %}
+<div class="grid grid-4 mb-5">
+  {{ stat_card('My pets', '2') }}
+  {{ stat_card('Applications', '1') }}
+  {{ stat_card('Upcoming visits', '3') }}
+  {{ stat_card('Monthly spend', '₹4,200') }}
+</div>
+<div class="card">This is the adopter light-sidebar shell preview.</div>
+{% endblock %}

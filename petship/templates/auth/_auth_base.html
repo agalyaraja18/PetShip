@@ -1,0 +1,24 @@
+{% extends 'layouts/root.html' %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+{% block body %}
+<div class="auth-split">
+  <div class="auth-visual">
+    <img class="auth-visual-img"
+         src="{{ url_for('static', filename='img/pets/authvisual.jpg') }}"
+         alt="A happy adopted dog">
+    {% block visual %}
+      <div class="auth-quote">
+        <p>&ldquo;PetShip made adopting Mochi feel safe and simple. She's family now.&rdquo;</p>
+        <div class="cite">Priya, adopted in 2026</div>
+      </div>
+    {% endblock %}
+  </div>
+  <div class="auth-panel">
+    <a class="brand" href="{{ url_for('pets.home') }}">{{ APP_NAME }}</a>
+    {% include 'partials/flashes.html' %}
+    {% block panel %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends 'layouts/shelter.html' %}
+{% from 'partials/macros.html' import stat_card, badge %}
+{% block title %}Post-adoption follow-ups · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Post-adoption follow-ups{% endblock %}
+{% block page_subtitle %}Set the check-in time for 7, 15, and 30 days after each adoption.{% endblock %}
+{% block content %}
+<div class="grid grid-4 mb-5">
+  {{ stat_card('Check-ins to complete', stats.due_this_week) }}
+  {{ stat_card('Overdue', stats.overdue) }}
+  {{ stat_card('Needs support', stats.needs_support) }}
+  {{ stat_card('Completion rate', stats.completion ~ '%') }}
+</div>
+
+<div class="card">
+  <h2 class="h3">Adoption check-in schedule</h2>
+  {% for fu in due_soon %}
+    <article class="toggle-row">
+      <div class="row spread row-wrap">
+        <div>
+          <div class="fw-600">{{ fu.application.pet.name }} · {{ fu.application.applicant.full_name }}</div>
+          <div class="text-sm text-muted">
+            {{ fu.milestone }} check-in · {{ fu.due_on.strftime('%d %b %Y at %I:%M %p UTC') }}
+          </div>
+        </div>
+        {{ badge(fu.status.label, 'warning') }}
+      </div>
+      <form method="post" action="{{ url_for('shelter_ops.schedule_followup', fu_id=fu.id) }}" class="row row-wrap mt-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="schedule-{{ fu.id }}">Set date and time</label>
+        <input id="schedule-{{ fu.id }}" type="datetime-local" name="scheduled_for"
+               value="{{ fu.due_on.strftime('%Y-%m-%dT%H:%M') }}" required>
+        <button class="btn btn-outline btn-sm" type="submit">Save schedule</button>
+      </form>
+      <form method="post" action="{{ url_for('shelter_ops.remind_followup', fu_id=fu.id) }}" class="mt-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline btn-sm" type="submit">Send reminder</button>
+      </form>
+    </article>
+  {% else %}
+    <p class="text-muted mb-0">No pending check-ins.</p>
+  {% endfor %}
+</div>
+
+<div class="card mt-5">
+  <h2 class="h3">Adopter responses</h2>
+  {% for fu in responses %}
+    <article class="toggle-row">
+      <div class="row spread row-wrap">
+        <div class="fw-600">{{ fu.application.pet.name }} · {{ fu.application.applicant.full_name }} · {{ fu.milestone }}</div>
+        {{ badge(fu.status.label, 'success' if fu.status.value == 'done' else 'warning') }}
+      </div>
+      {% if fu.response %}<p class="text-sm text-muted">{{ fu.response }}</p>{% endif %}
+      {% if fu.milestone == '30 days' and fu.status.value == 'needs_support' %}
+        <form method="post" action="{{ url_for('shelter_ops.return_after_followup', fu_id=fu.id) }}" class="mt-4">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="shelter-return-{{ fu.id }}">Why is a return needed?</label>
+          <textarea id="shelter-return-{{ fu.id }}" name="reason" maxlength="1000" required rows="3"></textarea>
+          <button class="btn btn-outline btn-sm mt-4" type="submit">Submit return process</button>
+        </form>
+      {% endif %}
+    </article>
+  {% else %}
+    <p class="text-muted mb-0">No adopter responses yet.</p>
+  {% endfor %}
+</div>
+
+<div class="card mt-5">
+  <h2 class="h3">Return requests</h2>
+  <p class="text-sm text-muted mb-0">Review return status and schedule home collection visits from the Return Pets page.</p>
+  <a class="btn btn-outline btn-sm mt-4" href="{{ url_for('shelter_ops.returns') }}">Open Return Pets</a>
+</div>
+{% endblock %}

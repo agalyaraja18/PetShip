@@ -1,0 +1,143 @@
+{% extends 'layouts/public.html' %}
+{% block title %}{{ APP_NAME }} · Every pet deserves a loving home{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pets.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/content.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="hero-copy">
+    <span class="tag">{{ APP_TAGLINE }}</span>
+    <h1 class="hero-title">Every pet deserves <span class="text-primary">a loving home</span></h1>
+    <p class="text-muted text-lg">Meet adoptable pets from verified shelters, find your best match with AI, and get support for a lifetime of care.</p>
+    <div class="row row-wrap mt-4">
+      <a class="btn btn-primary btn-lg" href="{{ url_for('pets.browse') }}">Adopt a Pet</a>
+      <a class="btn btn-outline btn-lg" href="{{ url_for('ai.teaser') }}">Find Your Match</a>
+    </div>
+
+    <form class="hero-search card" method="get" action="{{ url_for('pets.browse') }}">
+      <div class="hero-search-field">
+        <label>Pet type</label>
+        <select class="select" name="species">
+          <option value="">Dogs, cats, rabbits</option>
+          <option value="dog">Dogs</option>
+          <option value="cat">Cats</option>
+          <option value="rabbit">Rabbits</option>
+          <option value="bird">Birds</option>
+        </select>
+      </div>
+      <div class="hero-search-field">
+        <label>Age</label>
+        <select class="select" name="age">
+          <option value="">Any age</option>
+          <option value="baby">Baby</option>
+          <option value="young">Young</option>
+          <option value="adult">Adult</option>
+          <option value="senior">Senior</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" type="submit">Search</button>
+    </form>
+  </div>
+
+  <div class="hero-collage">
+    {% set fp = featured %}
+    <a class="collage-a" href="{{ url_for('pets.browse') }}"
+       aria-label="{{ fp[0].name }}">
+      <img src="{{ fp[0].photo }}" alt="{{ fp[0].alt }}" class="collage-img">
+    </a>
+    <a class="collage-b" href="{{ url_for('pets.browse') }}"
+       aria-label="{{ fp[1].name }}">
+      <img src="{{ fp[1].photo }}" alt="{{ fp[1].alt }}" class="collage-img">
+    </a>
+    <a class="collage-c" href="{{ url_for('pets.browse') }}"
+       aria-label="{{ fp[2].name }}">
+      <img src="{{ fp[2].photo }}" alt="{{ fp[2].alt }}" class="collage-img">
+    </a>
+    <div class="hero-stat card">
+      <div class="stat-value">{{ '{:,}'.format(stats.available) }}</div>
+      <div class="text-sm text-muted">pets available right now</div>
+    </div>
+  </div>
+</section>
+
+<section class="card row spread row-wrap home-lostfound-cta" aria-labelledby="lost-found-heading">
+  <div>
+    <h2 id="lost-found-heading" class="mb-1">Lost or found a pet?</h2>
+    <p class="text-muted mb-0">Post an alert, browse community reports, and help bring pets home.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('lostfound.index') }}">Visit Lost &amp; Found</a>
+</section>
+
+{# ── Community: Blog & Stories ── #}
+<section class="community-section mt-8">
+  <div class="row spread mb-5">
+    <div>
+      <h2 class="mb-1">Community Corner</h2>
+      <p class="text-muted mb-0">Read stories and tips from fellow pet lovers — or share your own.</p>
+    </div>
+    {% if current_user.is_authenticated %}
+      <div class="row" style="gap: var(--space-2);">
+        <a class="btn btn-primary btn-sm" href="{{ url_for('content.write_blog') }}">✏️ Write a Post</a>
+        <a class="btn btn-outline btn-sm" href="{{ url_for('content.share_story') }}">🐾 Share Story</a>
+      </div>
+    {% else %}
+      <a class="btn btn-outline btn-sm" href="{{ url_for('auth.login') }}">Log in to contribute</a>
+    {% endif %}
+  </div>
+
+  <div class="community-panels">
+    <div class="community-panel">
+      <div class="row spread mb-4">
+        <h3 class="mb-0">📝 Latest from the Blog</h3>
+        <a href="{{ url_for('content.blog') }}" class="text-primary text-sm">All posts →</a>
+      </div>
+      {% if blog_posts %}
+        <div class="stack">
+          {% for post in blog_posts %}
+            <a class="blog-list-item" href="{{ url_for('content.blog_post', slug=post.slug) }}">
+              <div class="blog-list-thumb"
+                   {% if post.cover_url %}style="background-image:url('{{ post.cover_url }}')"{% endif %}
+                   data-cat="{{ post.category }}"></div>
+              <div class="blog-list-text">
+                <div class="text-xs text-primary fw-600 mb-1">{{ post.category }}</div>
+                <div class="fw-600">{{ post.title }}</div>
+                <div class="text-xs text-muted">By {{ post.author or 'Community' }} · {{ post.read_minutes }} min read</div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted">No posts yet. Be the first to write one!</p>
+      {% endif %}
+    </div>
+
+    <div class="community-panel">
+      <div class="row spread mb-4">
+        <h3 class="mb-0">💛 Happy Tails</h3>
+        <a href="{{ url_for('content.stories') }}" class="text-primary text-sm">All stories →</a>
+      </div>
+      {% if stories %}
+        <div class="stack">
+          {% for story in stories %}
+            <div class="story-list-item">
+              <div class="story-list-thumb"
+                   {% if story.photo_url %}style="background-image:url('{{ story.photo_url }}')"{% endif %}>
+                {% if not story.photo_url %}<span>🐾</span>{% endif %}
+              </div>
+              <div class="story-list-text">
+                <div class="fw-600">{{ story.family }}</div>
+                {% if story.pet_name %}<div class="text-xs text-primary mb-1">with {{ story.pet_name }}</div>{% endif %}
+                <div class="text-sm text-muted">&ldquo;{{ story.quote[:120] }}{% if story.quote|length > 120 %}…{% endif %}&rdquo;</div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted">No stories yet. Share yours!</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

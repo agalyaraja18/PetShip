@@ -1,0 +1,25 @@
+{% extends 'layouts/root.html' %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/errors.css') }}">
+{% endblock %}
+{% block body %}
+<header class="topbar">
+  <div class="container">
+    <a class="brand" href="{{ url_for('pets.home') }}">{{ APP_NAME }}</a>
+  </div>
+</header>
+<main class="container">
+  <div class="error-page">
+    <div>
+      <p class="error-code">{% block code %}{% endblock %}</p>
+      <h2>{% block headline %}{% endblock %}</h2>
+      <p class="error-copy">{% block copy %}{% endblock %}</p>
+      <div class="error-actions">{% block actions %}{% endblock %}</div>
+      {% block ref %}{% endblock %}
+    </div>
+    <div class="error-art" style="background: {% block art_bg %}var(--warm-beige){% endblock %};">
+      {% block art %}{% endblock %}
+    </div>
+  </div>
+</main>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends 'auth/_auth_base.html' %}
+{% block title %}Registration received · {{ APP_NAME }}{% endblock %}
+{% block panel %}
+<div class="auth-icon">✓</div>
+<h1>Registration received</h1>
+<p class="text-muted">Save this private access code. You need it with your registration type and email address to check status or create your password after approval.</p>
+<div class="card card-muted mb-4">
+  <div class="text-sm text-muted">Registration access code</div>
+  <strong class="text-lg" style="overflow-wrap:anywhere;">{{ access_code }}</strong>
+</div>
+<p class="text-sm text-muted">This code is shown only once. PetShip does not store it in readable form.</p>
+<a class="btn btn-primary btn-block" href="{{ status_url }}">Check registration status</a>
+{% endblock %}

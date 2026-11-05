@@ -1,0 +1,44 @@
+{% extends 'layouts/vet.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Today's schedule · {{ APP_NAME }}{% endblock %}
+{% block page_title %}{{ schedule_label }}{% endblock %}
+{% block page_subtitle %}{{ now.strftime('%A, %d %B') }} · {{ todays|length }} appointments{% endblock %}
+{% block content %}
+<div class="grid" style="grid-template-columns: 1.6fr 1fr; gap: var(--space-5); align-items: start;">
+  <div class="card">
+    <h3>{{ schedule_label }}</h3>
+    {% for a in todays %}
+      <a class="row spread toggle-row appointment-row" href="{{ url_for('vet_workspace.patient_detail', appt_id=a.id) }}">
+        <div class="row" style="gap: var(--space-3);">
+          <div class="appt-time">{{ a.scheduled_for.strftime('%H:%M') }}</div>
+          <div>
+            <div class="fw-600">{{ pet_labels.get(a.id, a.note or 'Patient') }} · {{ a.service }}</div>
+            <div class="text-sm text-muted">{{ a.user.full_name if a.user else '' }}</div>
+          </div>
+        </div>
+        {{ badge(a.status.label, a.status.badge_variant) }}
+      </a>
+    {% else %}
+      <p class="text-muted mb-0">No appointments today.</p>
+    {% endfor %}
+  </div>
+
+  <div class="stack">
+    <div class="grid grid-2">
+      <div class="stat-card"><div class="stat-value">{{ patients }}</div><div class="stat-sub">Patients</div></div>
+      <div class="stat-card"><div class="stat-value">{{ week_count }}</div><div class="stat-sub">This week</div></div>
+    </div>
+    <div class="card">
+      <h3>Needs attention</h3>
+      {% for a in needs_attention %}
+        <div class="needs-item">
+          <div class="fw-600">{{ a.service }}</div>
+          <div class="text-sm text-muted">{{ pet_labels.get(a.id, a.note or 'Patient') }} · {{ a.scheduled_for.strftime('%d %b, %H:%M') }}</div>
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">All caught up.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends 'layouts/vet.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Patient · {{ APP_NAME }}{% endblock %}
+{% block page_head %}{% endblock %}
+{% block content %}
+<div class="card mb-5">
+  <div class="row spread">
+    <div>
+      <h2 class="mb-0">{{ pet_label }}</h2>
+      <p class="text-sm text-muted mb-0">{{ appt.service }} · {{ appt.scheduled_for.strftime('%d %b %Y, %H:%M') }}</p>
+    </div>
+    {{ badge(appt.status.label, appt.status.badge_variant) }}
+  </div>
+</div>
+
+<div class="grid grid-3 mb-5">
+  <div class="card">
+    <h3>Owner</h3>
+    {% if owner %}
+      <div class="row" style="gap: var(--space-3);">
+        <div class="avatar avatar-md profile-initials">{{ owner.initials }}</div>
+        <div>
+          <div class="fw-600">{{ owner.full_name }}</div>
+          <div class="text-sm text-muted">{{ owner.email }}</div>
+          {% if owner.phone %}<div class="text-sm text-muted">{{ owner.phone }}</div>{% endif %}
+        </div>
+      </div>
+    {% else %}<p class="text-muted mb-0">Walk-in</p>{% endif %}
+  </div>
+  <div class="card">
+    <h3>Active care</h3>
+    <div class="stack text-sm">
+      <div class="row spread"><span class="text-muted">Service</span><strong>{{ appt.service }}</strong></div>
+      <div class="row spread"><span class="text-muted">Clinic</span><strong>{{ appt.location or '—' }}</strong></div>
+      {% if appt.price %}<div class="row spread"><span class="text-muted">Fee</span><strong>₹{{ appt.price|int }}</strong></div>{% endif %}
+    </div>
+  </div>
+  <div class="card">
+    <h3>Reference</h3>
+    <p class="text-muted mb-0">{{ appt.reference or '—' }}</p>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Visit history</h3>
+  {% for v in history %}
+    <div class="row spread toggle-row">
+      <div>
+        <div class="fw-600">{{ v.service }}</div>
+        <div class="text-sm text-muted">{{ v.scheduled_for.strftime('%d %b %Y') }}</div>
+      </div>
+      {{ badge(v.status.label, v.status.badge_variant) }}
+    </div>
+  {% else %}
+    <p class="text-muted mb-0">No prior visits.</p>
+  {% endfor %}
+</div>
+{% endblock %}

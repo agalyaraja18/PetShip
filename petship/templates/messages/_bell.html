@@ -1,0 +1,16 @@
+{#  Notification bell dropdown contents. Expects `notifs` and `unread`. #}
+<div class="bell-head row spread">
+  <div class="fw-600">Notifications</div>
+  <a class="text-sm text-primary" href="{{ url_for('reminders.notifications') }}">View all</a>
+</div>
+<div class="stack">
+  {% for n in notifs %}
+    <a class="bell-item {{ 'is-unread' if not n.read }}" href="{{ n.link or url_for('reminders.notifications') }}">
+      <div class="fw-600 text-sm">{{ n.title }}</div>
+      {% if n.body %}<div class="text-sm text-muted">{{ n.body }}</div>{% endif %}
+      <div class="text-sm text-muted">{{ n.created_at.strftime('%d %b, %H:%M') }}</div>
+    </a>
+  {% else %}
+    <p class="text-sm text-muted mb-0">No notifications yet.</p>
+  {% endfor %}
+</div>

@@ -1,0 +1,55 @@
+{% extends 'layouts/adopter.html' %}
+{% block title %}Pawly · pet care assistant · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ai.css') }}">
+{% endblock %}
+{% block page_head %}{% endblock %}
+{% block content %}
+<div class="chat-layout">
+  <div class="card chat-main">
+    <div class="chat-head">
+      <div class="row" style="gap: var(--space-3);">
+        <div class="pawly-avatar">🐾</div>
+        <div>
+          <div class="fw-600">Pawly, your pet care assistant</div>
+          <div class="text-sm text-muted">
+            {{ 'AI-powered' if ai_live else 'Guided mode' }} · Not a substitute for a vet
+          </div>
+        </div>
+      </div>
+      <a class="btn btn-outline btn-sm" href="{{ url_for('ai.chat') }}">+ New chat</a>
+    </div>
+
+    <div class="chat-stream" id="chat-stream">
+      {% if not messages %}
+        <div class="chat-bubble assistant">
+          <p class="mb-0">Hi {{ current_user.first_name or 'there' }}! I'm Pawly. Ask me anything about pet care, adoption, or your pet's health.</p>
+        </div>
+      {% endif %}
+      {% for m in messages %}
+        <div class="chat-bubble {{ m.role }}">
+          <p class="mb-0">{{ m.content }}</p>
+        </div>
+      {% endfor %}
+    </div>
+
+    <form class="chat-input" hx-post="{{ url_for('ai.chat_send') }}"
+          hx-target="#chat-stream" hx-swap="beforeend"
+          hx-on::after-request="this.reset(); document.getElementById('chat-stream').scrollTop = 1e9;">
+      <input type="hidden" name="conversation_id" id="conversation-id-field" value="{{ convo.id if convo else '' }}">
+      <input class="input" name="message" placeholder="Ask Pawly about care, food, behaviour..." autocomplete="off" required>
+      <button class="btn btn-primary" type="submit">Send</button>
+    </form>
+    <p class="text-sm text-muted text-center mt-4">Pawly may make mistakes. For emergencies, contact a vet right away.</p>
+  </div>
+
+  <aside class="stack">
+    <div class="card card-muted">
+      <div class="fw-600">Emergency?</div>
+      <p class="text-sm text-muted mb-0">Find the nearest 24/7 vet clinic in one tap.</p>
+      <a class="btn btn-danger btn-sm mt-4" href="{{ url_for('learning.emergency') }}">Emergency vet</a>
+    </div>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('ai.chat_history') }}">View chat history →</a>
+  </aside>
+</div>
+{% endblock %}

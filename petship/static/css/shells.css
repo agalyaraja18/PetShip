@@ -1,0 +1,151 @@
+/* ==========================================================================
+   PetShip role shells
+   - Public  : top navigation bar
+   - Adopter : light left sidebar
+   - Vet     : light left sidebar
+   - Shelter / Admin : dark espresso left sidebar
+   ========================================================================== */
+
+/* ---------- Public top-nav shell ---------- */
+.topbar {
+  height: var(--topbar-height);
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+}
+.topbar .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+.brand {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1.3rem;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.brand:hover { text-decoration: none; }
+.topnav {
+  display: flex;
+  gap: var(--space-5);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.topnav a {
+  color: var(--color-text);
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+.topnav a.is-active, .topnav a:hover { color: var(--color-primary); }
+.topbar-actions { display: flex; gap: var(--space-3); align-items: center; }
+
+.public-main { min-height: 60vh; padding: var(--space-6) 0 var(--space-8); }
+
+.site-footer {
+  background: var(--warm-beige);
+  color: var(--color-text);
+  padding: var(--space-6) 0;
+  margin-top: var(--space-8);
+}
+.site-footer a { color: var(--color-text); }
+
+/* ---------- Sidebar shells (shared skeleton) ---------- */
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  min-height: 100vh;
+}
+.sidebar {
+  padding: var(--space-5) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.sidebar .brand { display: block; margin-bottom: var(--space-2); }
+.sidebar-sub { font-size: 0.78rem; margin-top: -8px; }
+
+/* Sidebar footer with user + logout (pinned to the bottom) */
+.sidebar-foot { margin-top: auto; padding-top: var(--space-4); border-top: 1px solid rgba(128,128,128,0.2); }
+.sidebar-user { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.sidebar-user-name { font-size: 0.85rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-logout { display: block; padding: 0.5rem 0.8rem; border-radius: var(--radius-md); font-size: 0.9rem; text-decoration: none; }
+.shell-light .sidebar-logout { color: var(--color-primary); }
+.shell-light .sidebar-logout:hover { background: var(--color-surface-muted); }
+.shell-dark .sidebar-logout { color: var(--warm-peach); }
+.shell-dark .sidebar-logout:hover { background: rgba(255,255,255,0.08); }
+.sidenav { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.sidenav-section-header {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: var(--space-4) 0.8rem var(--space-1);
+  pointer-events: none;
+  user-select: none;
+}
+.shell-light .sidenav-section-header { color: var(--color-text-muted); }
+.shell-dark .sidenav-section-header { color: var(--dark-sidebar-muted); }
+.sidenav a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-md);
+  font-size: 0.92rem;
+  text-decoration: none;
+}
+.app-main {
+  padding: var(--space-6);
+  background: var(--color-bg);
+}
+.app-main > .page-head { margin-bottom: var(--space-5); }
+.page-head h1 { margin-bottom: var(--space-1); }
+
+/* ---------- Light sidebar (adopter + vet) ---------- */
+.shell-light .sidebar { background: var(--color-surface); border-right: 1px solid var(--color-border); }
+.shell-light .sidenav a { color: var(--color-text); }
+.shell-light .sidenav a:hover { background: var(--color-surface-muted); }
+.shell-light .sidenav a.is-active { background: var(--color-primary); color: #fff; }
+.shell-light .sidebar-sub { color: var(--color-text-muted); }
+
+/* ---------- Dark sidebar (shelter + admin) ---------- */
+.shell-dark .sidebar { background: var(--dark-sidebar-bg); }
+.shell-dark .sidebar .brand { color: #fff; }
+.shell-dark .sidebar-sub { color: var(--dark-sidebar-muted); }
+.shell-dark .sidenav a { color: var(--dark-sidebar-text); }
+.shell-dark .sidenav a:hover { background: rgba(255,255,255,0.08); }
+.shell-dark .sidenav a.is-active { background: var(--dark-sidebar-active); color: #fff; }
+
+/* ---------- Notifications bell dropdown ---------- */
+.bell { position: relative; }
+.bell .dot {
+  position: absolute; top: -2px; right: -2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--color-primary); color: #fff;
+  font-size: 0.65rem; display: flex; align-items: center; justify-content: center;
+}
+.dropdown-panel {
+  position: absolute; right: 0; top: calc(100% + 8px);
+  width: 340px; background: var(--color-surface);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  padding: var(--space-4); z-index: 50;
+}
+
+/* ---------- Responsive sidebars ---------- */
+@media (max-width: 860px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .sidenav { flex-direction: row; flex-wrap: wrap; }
+  .app-main { padding: var(--space-5) var(--space-4); }
+  .topnav { display: none; }
+}

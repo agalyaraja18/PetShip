@@ -1,0 +1,15 @@
+{% extends 'layouts/shelter.html' %}
+{% set active_nav = 'dashboard' %}
+{% from 'partials/macros.html' import stat_card %}
+{% block title %}Shelter shell preview{% endblock %}
+{% block page_title %}Shelter overview{% endblock %}
+{% block page_subtitle %}{% endblock %}
+{% block content %}
+<div class="grid grid-4 mb-5">
+  {{ stat_card('Listed pets', '64', '8 added this week') }}
+  {{ stat_card('New requests', '17', '5 need review') }}
+  {{ stat_card('Adopted', '212', 'This year') }}
+  {{ stat_card('Rating', '4.8', '126 reviews') }}
+</div>
+<div class="card">This is the shelter dark-sidebar shell preview.</div>
+{% endblock %}

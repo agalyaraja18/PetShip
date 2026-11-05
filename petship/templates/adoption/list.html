@@ -1,0 +1,33 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}My applications · {{ APP_NAME }}{% endblock %}
+{% block page_title %}My applications{% endblock %}
+{% block page_subtitle %}Track every adoption you've applied for.{% endblock %}
+{% block content %}
+{% if applications %}
+<div class="stack">
+  {% for app_row in applications %}
+    <div class="card row spread row-wrap application-row">
+      <a class="row" style="gap: var(--space-4); text-decoration: none; color: inherit;"
+         href="{{ url_for('adoption.track', app_id=app_row.id) }}">
+        <div class="shelter-logo">{{ app_row.pet.name[0] }}</div>
+        <div>
+          <div class="fw-600">{{ app_row.pet.name }}</div>
+          <div class="text-sm text-muted">{{ app_row.reference }} · {{ app_row.pet.shelter.name }}</div>
+        </div>
+        {{ badge(app_row.stage.label, 'primary') }}
+      </a>
+      {% if app_row.stage.value == 'home_visit' %}
+        <a class="btn btn-outline btn-sm"
+           href="{{ url_for('adoption.track', app_id=app_row.id, _anchor='reschedule-visit') }}">Reschedule visit</a>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card text-center">
+  <p class="text-muted">You haven't applied for any pets yet.</p>
+  <a class="btn btn-primary" href="{{ url_for('pets.browse') }}">Browse pets</a>
+</div>
+{% endif %}
+{% endblock %}

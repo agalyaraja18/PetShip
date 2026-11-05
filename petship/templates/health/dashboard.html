@@ -1,0 +1,105 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}{{ pet.name }}'s health · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/health.css') }}">
+{% endblock %}
+{% block page_head %}{% endblock %}
+{% block content %}
+<div class="card mb-5">
+  <div class="row spread">
+    <div class="row" style="gap: var(--space-4);">
+      {% if pet.photo_url %}<img class="avatar avatar-lg" src="{{ pet.photo_url }}" alt="{{ pet.name }}">
+      {% else %}<div class="avatar avatar-lg profile-initials">{{ pet.name[0] }}</div>{% endif %}
+      <div>
+        <h1 class="mb-0">{{ pet.name }}'s health</h1>
+        <p class="text-sm text-muted mb-0">
+          {{ pet.breed or pet.species }} · {{ pet.age_text }}
+          · Pet ID {{ pet.public_pet_id }}
+          {%- if pet.weight_kg %} · {{ pet.weight_kg }} kg{% endif %}
+          {%- if pet.microchip_id %} · Microchip {{ pet.microchip_id }}{% endif %}
+        </p>
+      </div>
+    </div>
+    {{ badge('Healthy', 'success') }}
+  </div>
+  {% if all_pets|length > 1 %}
+    <div class="row row-wrap mt-4">
+      {% for p in all_pets %}
+        <a class="pill {{ 'is-active' if p.id == pet.id }}" href="{{ url_for('health.dashboard', pet_id=p.id) }}">{{ p.name }}</a>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+<div class="grid grid-3 mb-5">
+  <div class="card">
+    <h3>Weight</h3>
+    <div class="big-stat">{{ pet.weight_kg or '—' }} kg</div>
+    <p class="text-sm text-muted mb-0">Latest recorded</p>
+  </div>
+  <div class="card">
+    <h3>Next vaccination</h3>
+    {% if next_due %}
+      <div class="big-stat">{{ next_due.due_on.strftime('%d %b') }}</div>
+      <p class="text-sm text-muted mb-0">{{ next_due.name }} · {{ badge(next_due.status.label, next_due.status.badge_variant) }}</p>
+    {% else %}
+      <p class="text-muted mb-0">All up to date.</p>
+    {% endif %}
+  </div>
+  <div class="card">
+    <h3>Records</h3>
+    <div class="big-stat">{{ records|length }}</div>
+    <a class="text-primary text-sm" href="{{ url_for('health.records', pet_id=pet.id) }}">View all documents →</a>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <div class="row spread"><h3 class="mb-0">Vaccinations</h3>
+      <a class="text-primary text-sm" href="{{ url_for('health.vaccinations', pet_id=pet.id) }}">Tracker →</a></div>
+    <div class="stack mt-4">
+      {% for v in vaccinations %}
+        <div class="row spread toggle-row">
+          <span>{{ v.name }}</span>
+          {% if v.status.value == 'done' %}{{ badge('Done', 'success') }}
+          {% else %}{{ badge(v.due_on.strftime('Due %d %b') if v.due_on else v.status.label, v.status.badge_variant) }}{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="row spread"><h3 class="mb-0">Recent records</h3>
+      <a class="text-primary text-sm" href="{{ url_for('health.records', pet_id=pet.id) }}">All →</a></div>
+    <div class="stack mt-4">
+      {% for r in records[:5] %}
+        <div class="row spread toggle-row">
+          <div><div class="fw-600">{{ r.title }}</div><div class="text-sm text-muted">{{ r.vet_name }} · {{ r.record_date.strftime('%d %b %Y') }}</div></div>
+          {{ badge(r.record_type.label, 'neutral') }}
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">No records yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card mt-5">
+  <h3>Health plans &amp; next visits</h3>
+  <div class="stack">
+    {% for plan in health_plans %}
+      <div class="toggle-row">
+        <div class="row spread">
+          <div class="fw-600">{{ plan.title }}</div>
+          {% if plan.next_visit_on %}<span class="text-sm text-muted">Next visit {{ plan.next_visit_on.strftime('%d %b %Y') }}</span>{% endif %}
+        </div>
+        {% if plan.next_visit_purpose %}<div class="text-sm mt-1"><strong>Next visit purpose:</strong> {{ plan.next_visit_purpose }}</div>{% endif %}
+        {% if plan.instructions %}<div class="text-sm text-muted mt-1">{{ plan.instructions }}</div>{% endif %}
+        {% if plan.prescribed_medicines %}<div class="text-sm mt-1"><strong>Prescribed medicines:</strong> {{ plan.prescribed_medicines }}</div>{% endif %}
+      </div>
+    {% else %}
+      <p class="text-muted mb-0">No health plans have been shared yet.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

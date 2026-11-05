@@ -1,0 +1,61 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Lost & Found pets · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/leaflet.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/community.css') }}">
+{% endblock %}
+{% block content %}
+<div class="row spread row-wrap">
+  <div><h1 class="mb-0">Lost &amp; Found pets</h1><p class="text-muted mb-0">{{ reports|length }} community alerts</p></div>
+  <a class="btn btn-primary" href="{{ url_for('lostfound.new_report') }}">+ Report lost or found pet</a>
+</div>
+
+<div class="row row-wrap mt-4">
+  {% for key, label in [('all','All'),('lost','Lost'),('found','Found'),('reunited','Reunited')] %}
+    <a class="pill {{ 'is-active' if status_filter == key }}" href="{{ url_for('lostfound.index', filter=key) }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="lostfound-layout mt-4" x-data="lfMap()">
+  <div class="stack">
+    {% for r in reports %}
+      <a class="card lf-card" href="{{ url_for('lostfound.detail', report_id=r.id) }}">
+        <div class="lf-photo {{ 'lost' if r.kind.value == 'lost' else 'found' }}"
+             {% if r.photo_url %}style="background-image:url('{{ r.photo_url }}')"{% endif %}>
+          {{ badge(r.kind.label|upper, 'danger' if r.kind.value == 'lost' else 'info') }}
+        </div>
+        <div class="lf-body">
+          <div class="fw-600">{{ r.pet_name or (r.species or 'Pet') }}</div>
+          <div class="text-sm text-muted">{{ r.location or '' }} · {{ r.created_at.strftime('%d %b') }}</div>
+          {% if r.status.value == 'reunited' %}{{ badge('Reunited', 'success') }}{% endif %}
+        </div>
+      </a>
+    {% else %}
+      <div class="card"><p class="text-muted mb-0">No alerts in this view.</p></div>
+    {% endfor %}
+  </div>
+  <div id="lf-map" class="lostfound-map"></div>
+</div>
+
+<script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>
+<script>
+  function lfMap() {
+    return {
+      init() {
+        var map = L.map('lf-map').setView([13.0067, 80.2570], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+        fetch("{{ url_for('lostfound.reports_json') }}").then(r => r.json()).then(items => {
+          items.forEach(i => {
+            L.circleMarker([i.lat, i.lng], {
+              radius: 9, color: '#fff', weight: 2,
+              fillColor: i.kind === 'lost' ? '#c0392b' : '#5a7fa3', fillOpacity: 1
+            }).addTo(map).bindPopup('<strong>' + i.name + '</strong><br>' + (i.location||''));
+          });
+        });
+      }
+    };
+  }
+</script>
+{% endblock %}

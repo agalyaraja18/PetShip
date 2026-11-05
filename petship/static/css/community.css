@@ -1,0 +1,81 @@
+/* Community feed, posts, profiles (Task 30) */
+.community-layout { display: grid; grid-template-columns: 200px 1fr 260px; gap: var(--space-5); align-items: start; }
+.community-topics { position: sticky; top: var(--space-5); }
+.topic-list { list-style: none; margin: 0; padding: 0; }
+.topic-list a { display: block; padding: 0.5rem 0.7rem; border-radius: var(--radius-md); color: var(--color-text); text-decoration: none; font-size: 0.9rem; }
+.topic-list a:hover { background: var(--color-surface-muted); }
+.topic-list a.is-active { background: var(--color-primary); color: #fff; }
+
+.composer { display: flex; gap: var(--space-3); align-items: center; }
+.composer-prompt { flex: 1; background: var(--color-surface-muted); border-radius: var(--radius-pill); padding: 0.7rem 1rem; color: var(--color-text-muted); text-decoration: none; }
+.post-author { text-decoration: none; color: inherit; gap: var(--space-3); }
+.post-card h3 a, .post-card { text-decoration: none; color: inherit; }
+.post-photo { aspect-ratio: 16/9; border-radius: var(--radius-md); background: var(--warm-beige) center/cover; margin-top: var(--space-3); }
+.post-actions { gap: var(--space-5); }
+.post-action { background: none; border: none; cursor: pointer; color: var(--color-text-muted); font-size: 0.9rem; text-decoration: none; font-family: var(--font-body); }
+.post-action.is-liked { color: var(--terracotta); font-weight: 600; }
+
+.discussion-post h1 { margin-top: var(--space-3); }
+.comment-form { display: flex; gap: var(--space-3); }
+.comment { padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); }
+.comment.reply { margin-left: var(--space-6); border-bottom: none; }
+
+.create-layout { display: grid; grid-template-columns: 1fr 300px; gap: var(--space-5); align-items: start; }
+.report-modal { border: none; border-radius: var(--radius-lg); padding: var(--space-5); max-width: 460px; box-shadow: var(--shadow-lg); }
+.report-modal::backdrop { background: rgba(70,53,47,0.4); }
+.report-reason { display: block; padding: var(--space-3); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: var(--space-2); cursor: pointer; }
+.profile-stats { display: flex; gap: var(--space-6); }
+
+@media (max-width: 960px) {
+  .community-layout { grid-template-columns: 1fr; }
+  .create-layout { grid-template-columns: 1fr; }
+}
+
+/* Reviews (Task 31) */
+.reviews-layout { display: grid; grid-template-columns: 300px 1fr; gap: var(--space-5); align-items: start; }
+.review-summary-card { position: sticky; top: var(--space-5); }
+.review-avg { font-family: var(--font-heading); font-weight: 600; font-size: 3rem; line-height: 1; }
+.review-dist > div { margin-bottom: var(--space-2); }
+.review-dist .progress { flex: 1; }
+@media (max-width: 820px) { .reviews-layout { grid-template-columns: 1fr; } }
+
+/* Lost & Found (Task 33) */
+.lostfound-layout { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); align-items: start; }
+.lostfound-map { height: 60vh; border-radius: var(--radius-lg); overflow: hidden; z-index: 0; position: sticky; top: var(--space-5); }
+.lf-card { display: flex; gap: var(--space-4); text-decoration: none; color: inherit; align-items: center; }
+.lf-photo { width: 110px; height: 90px; border-radius: var(--radius-md); background: var(--warm-beige) center/cover; display: flex; align-items: flex-start; padding: var(--space-2); flex-shrink: 0; }
+.lf-photo.lost { background-color: #f6dcd8; }
+.lf-photo.found { background-color: #e1ebf3; }
+.lf-photo-lg { aspect-ratio: 16/9; border-radius: var(--radius-md); background: var(--warm-beige) center/cover; display: flex; align-items: flex-start; padding: var(--space-3); }
+.lf-photo-lg.lost { background-color: #f6dcd8; }
+.lf-photo-lg.found { background-color: #e1ebf3; }
+.lf-thumb { width: 44px; height: 44px; border-radius: var(--radius-sm); background: var(--warm-beige) center/cover; flex-shrink: 0; }
+.lf-thumb.lost { background-color: #f6dcd8; }
+.lf-thumb.found { background-color: #e1ebf3; }
+.lf-detail-layout { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--space-5); align-items: start; }
+@media (max-width: 900px) { .lostfound-layout, .lf-detail-layout { grid-template-columns: 1fr; } }
+
+/* Real-time messaging (Task 32) */
+.messages-layout { display: grid; grid-template-columns: 300px 1fr; gap: var(--space-5); align-items: start; height: 72vh; }
+.messages-list { overflow-y: auto; height: 100%; }
+.thread-item { display: flex; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); text-decoration: none; color: inherit; align-items: center; }
+.thread-item:hover { background: var(--color-surface-muted); }
+.thread-item.is-active { background: var(--color-surface-muted); }
+.thread-preview { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.thread-view { display: flex; flex-direction: column; height: 100%; }
+.thread-head { padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.thread-stream { flex: 1; overflow-y: auto; padding: var(--space-4) 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.msg-bubble { max-width: 70%; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); }
+.msg-bubble.theirs { background: var(--color-surface-muted); align-self: flex-start; }
+.msg-bubble.mine { background: var(--color-primary); color: #fff; align-self: flex-end; }
+.msg-time { font-size: 0.68rem; opacity: 0.7; display: block; margin-top: 2px; }
+.thread-composer { display: flex; gap: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
+.thread-composer .input { flex: 1; }
+
+/* Bell dropdown */
+.bell-head { padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-border); margin-bottom: var(--space-3); }
+.bell-item { display: block; padding: var(--space-3); border-radius: var(--radius-md); text-decoration: none; color: inherit; }
+.bell-item:hover { background: var(--color-surface-muted); }
+.bell-item.is-unread { border-left: 3px solid var(--color-primary); }
+
+@media (max-width: 820px) { .messages-layout { grid-template-columns: 1fr; height: auto; } }

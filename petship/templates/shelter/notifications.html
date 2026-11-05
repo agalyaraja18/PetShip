@@ -1,0 +1,82 @@
+{% extends 'layouts/shelter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Shelter notifications · {{ APP_NAME }}{% endblock %}
+{% block page_head %}
+  <div class="row spread">
+    <div><h1 class="mb-0">Notifications</h1><p class="text-muted mb-0">Applications, appointments, and upcoming home visits.</p></div>
+    <form method="post" action="{{ url_for('shelter.read_all_notifications') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-ghost btn-sm" type="submit">Mark all as read</button>
+    </form>
+  </div>
+{% endblock %}
+{% block content %}
+<div class="row row-wrap mb-4">
+  {% for key, label in category_options %}
+    <a class="pill {{ 'is-active' if category == key }}" href="{{ url_for('shelter.notifications', category=key) }}">{{ label }}</a>
+  {% endfor %}
+</div>
+{% if category in ['all', 'adoption'] %}
+<section class="card mb-5">
+  <h2 class="h3">New adoption requests</h2>
+  <div class="stack">
+    {% for application in new_applications %}
+      <a class="row spread toggle-row" href="{{ url_for('shelter_requests.detail', app_id=application.id) }}" style="color:inherit;text-decoration:none;">
+        <div>
+          <div class="fw-600">{{ application.applicant.full_name }} applied for {{ application.pet.name }}</div>
+          <div class="text-sm text-muted">{{ application.reference }} · {{ application.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+        </div>
+        {{ badge('Review application', 'warning') }}
+      </a>
+    {% else %}
+      <p class="text-muted mb-0">No new applications.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if category in ['all', 'appointments'] %}
+<section class="card mb-5">
+  <h2 class="h3">Appointments &amp; home visits</h2>
+  <div class="stack">
+    {% for appointment in upcoming_appointments %}
+      <a class="row spread toggle-row" href="{{ url_for('shelter_requests.detail', app_id=appointment.application_id) if appointment.application_id else url_for('shelter_ops.appointments') }}" style="color:inherit;text-decoration:none;">
+        <div>
+          <div class="fw-600">{{ appointment.kind.label }}{% if appointment.pet %} · {{ appointment.pet.name }}{% endif %}</div>
+          <div class="text-sm text-muted">{{ appointment.scheduled_for.strftime('%a, %d %b %Y · %I:%M %p') }}{% if appointment.location %} · {{ appointment.location }}{% endif %}</div>
+          {% if appointment.note %}<div class="text-sm text-muted">{{ appointment.note }}</div>{% endif %}
+        </div>
+        {{ badge(appointment.status.label, appointment.status.badge_variant) }}
+      </a>
+    {% else %}
+      <p class="text-muted mb-0">No upcoming appointments or home visits.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="stack">
+  {% for key, label, group in notification_groups %}
+    <section class="stack">
+      <h2 class="h3">{{ label }}</h2>
+      {% for n in group %}
+        <article class="card notif-item {{ 'is-unread' if not n.read }}">
+          <div class="row spread">
+            <div>
+              <div class="fw-600">{% if n.link %}<a href="{{ n.link }}">{{ n.title }}</a>{% else %}{{ n.title }}{% endif %}</div>
+              {% if n.body %}<div class="text-sm text-muted">{{ n.body }}</div>{% endif %}
+            </div>
+            <div class="text-sm text-muted">{{ n.created_at.strftime('%d %b, %H:%M') }}</div>
+          </div>
+        </article>
+      {% endfor %}
+    </section>
+  {% else %}
+    {% if category not in ['all', 'adoption', 'appointments'] %}
+      <div class="card"><p class="text-muted mb-0">No notifications in this category.</p></div>
+    {% elif category == 'all' and not notifications %}
+      <div class="card"><p class="text-muted mb-0">No notifications yet.</p></div>
+    {% endif %}
+  {% endfor %}
+</section>
+{% endblock %}

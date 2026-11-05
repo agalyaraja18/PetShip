@@ -1,0 +1,63 @@
+{% extends 'layouts/root.html' %}
+{% set active_nav = active_nav | default('') %}
+
+{% block body %}
+<header class="topbar">
+  <div class="container">
+    <a class="brand" href="{{ url_for('pets.home') }}">{{ APP_NAME }}</a>
+    <nav aria-label="Primary">
+      <ul class="topnav">
+        <li><a href="{{ url_for('pets.browse') }}" class="{{ 'is-active' if active_nav == 'adopt' }}">Adopt</a></li>
+        <li><a href="{{ url_for('ai.teaser') }}" class="{{ 'is-active' if active_nav == 'aimatch' }}">AI Match</a></li>
+        <li><a href="{{ url_for('vet.directory') }}" class="{{ 'is-active' if active_nav == 'vets' }}">Vets</a></li>
+        <li><a href="{{ url_for('lostfound.index') }}" class="{{ 'is-active' if active_nav == 'lostfound' }}">Lost &amp; Found</a></li>
+        <li><a href="{{ url_for('lifestyle.places') }}" class="{{ 'is-active' if active_nav == 'places' }}">Places</a></li>
+        <li><a href="{{ url_for('content.blog') }}" class="{{ 'is-active' if active_nav == 'blog' }}">Blog</a></li>
+        <li><a href="{{ url_for('content.stories') }}" class="{{ 'is-active' if active_nav == 'stories' }}">Stories</a></li>
+      </ul>
+    </nav>
+    <div class="topbar-actions">
+      {% block topbar_actions %}
+        {% if current_user.is_authenticated %}
+          <div class="bell" x-data="{ open: false }">
+            <button class="btn btn-ghost" @click="open = !open"
+                    hx-get="{{ url_for('messages.bell') }}" hx-target="#bell-panel" hx-trigger="click once"
+                    aria-label="Notifications">&#128276;</button>
+            <div class="dropdown-panel" id="bell-panel" x-show="open" @click.outside="open = false" style="display:none;"></div>
+          </div>
+          <a class="btn btn-primary" href="{{ url_for('auth.dashboard') }}">My Dashboard</a>
+          <a class="btn btn-ghost" href="{{ url_for('auth.logout') }}">Log out</a>
+        {% else %}
+          <a class="btn btn-outline" href="{{ url_for('auth.login') }}">Log in</a>
+          <a class="btn btn-outline" href="{{ url_for('auth.registration_status') }}">Registration Status</a>
+          <a class="btn btn-primary" href="{{ url_for('auth.register') }}">Sign up</a>
+        {% endif %}
+      {% endblock %}
+    </div>
+  </div>
+</header>
+
+<main class="public-main" id="main-content">
+  <div class="container">
+    {% include 'partials/flashes.html' %}
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container row spread row-wrap">
+    <div>
+      <div class="brand">{{ APP_NAME }}</div>
+      <p class="text-sm text-muted mb-0">{{ APP_TAGLINE }}</p>
+    </div>
+    <div class="row row-wrap text-sm">
+      <a href="{{ url_for('content.about') }}">About</a>
+      <a href="{{ url_for('content.contact') }}">Contact</a>
+      <a href="{{ url_for('feedback.submit') }}">Feedback</a>
+      <a href="{{ url_for('content.help_centre') }}">Help</a>
+      <a href="{{ url_for('legal.privacy') }}">Privacy</a>
+      <a href="{{ url_for('legal.terms') }}">Terms</a>
+    </div>
+  </div>
+</footer>
+{% endblock %}

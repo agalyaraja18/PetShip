@@ -1,0 +1,85 @@
+{% extends 'layouts/shelter.html' %}
+{% block title %}Shelter settings · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block page_subtitle %}Manage shelter notifications and account security.{% endblock %}
+{% block content %}
+<div x-data="{ tab: 'account' }" class="settings-layout">
+  <nav class="settings-tabs card" aria-label="Settings sections">
+    {% for key, label in [('account','Account'),('notifications','Notifications'),('security','Security')] %}
+      <button class="settings-tab" type="button" :class="{ 'is-active': tab === '{{ key }}' }" @click="tab = '{{ key }}'">{{ label }}</button>
+    {% endfor %}
+  </nav>
+
+  <div class="stack">
+    <section class="card" x-show="tab === 'account'" style="display:none;">
+      <h3>Account</h3>
+      <div class="row spread toggle-row">
+        <div><div class="fw-600">Email</div><div class="text-sm text-muted">{{ user.email }}</div></div>
+      </div>
+      <div class="row spread toggle-row">
+        <div><div class="fw-600">User ID</div><div class="text-sm text-muted">{{ user.public_id or 'Not assigned yet' }}</div></div>
+      </div>
+      <div class="row spread toggle-row">
+        <div><div class="fw-600">Role</div><div class="text-sm text-muted">{{ user.role.label }}</div></div>
+      </div>
+      <a class="btn btn-outline btn-sm mt-4" href="{{ url_for('shelter.profile') }}">Edit shelter profile</a>
+      <div class="row spread toggle-row mt-4" x-data="{ confirm: false }">
+        <div>
+          <div class="fw-600">Delete account</div>
+          <div class="text-sm text-muted">Permanently remove your account and associated shelter data.</div>
+        </div>
+        <div>
+          <button class="btn btn-danger btn-sm" type="button" x-show="!confirm" @click="confirm = true">Delete account</button>
+          <form method="post" action="{{ url_for('profile.delete_account') }}" x-show="confirm" style="display:none;" class="row">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-danger btn-sm" type="submit">Confirm delete</button>
+            <button class="btn btn-ghost btn-sm" type="button" @click="confirm = false">Cancel</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" x-show="tab === 'notifications'">
+      <h3>Notification preferences</h3>
+      <p class="text-muted">Choose which shelter updates appear in your notifications.</p>
+      <form method="post" action="{{ url_for('shelter.settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="section" value="notifications">
+        {% for key, label, description in [
+          ('adoption_updates', 'Adoption requests and status updates', 'New applications and adopter activity'),
+          ('appointment_updates', 'Appointments and home visits', 'Scheduled visits, reschedule requests, and reminders'),
+          ('health_reminders', 'Care reminders', 'Other pet care and health reminders')
+        ] %}
+          <div class="row spread toggle-row">
+            <div><div class="fw-600">{{ label }}</div><div class="text-sm text-muted">{{ description }}</div></div>
+            <label class="switch">
+              <input type="checkbox" name="{{ key }}" {{ 'checked' if user.prefs.get(key, True) }}>
+              <span class="slider"></span>
+            </label>
+          </div>
+        {% endfor %}
+        <button class="btn btn-primary mt-4" type="submit">Save preferences</button>
+      </form>
+    </section>
+
+    <section class="card" x-show="tab === 'security'" style="display:none;">
+      <h3>Security</h3>
+      <div class="row spread toggle-row">
+        <div><div class="fw-600">Password</div><div class="text-sm text-muted">Change your account password</div></div>
+        <a class="btn btn-outline btn-sm" href="{{ url_for('auth.forgot_password') }}">Change</a>
+      </div>
+      <form method="post" action="{{ url_for('shelter.settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="section" value="security">
+        <div class="row spread toggle-row">
+          <div><div class="fw-600">Two-factor authentication</div><div class="text-sm text-muted">Add an extra layer of account security</div></div>
+          <label class="switch">
+            <input type="checkbox" name="two_factor_enabled" onchange="this.form.submit()" {{ 'checked' if user.two_factor_enabled }}>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

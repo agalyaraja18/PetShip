@@ -1,0 +1,78 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag, badge %}
+{% block title %}{{ vet.display_name }} · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/vet.css') }}">
+{% endblock %}
+{% block content %}
+<div class="vet-detail-layout">
+  <div class="stack">
+    <div class="card">
+      <div class="row" style="gap: var(--space-5);">
+        {% if vet.photo_url %}<img class="avatar avatar-lg" src="{{ vet.photo_url }}" alt="{{ vet.display_name }}">
+        {% else %}<div class="avatar avatar-lg profile-initials">{{ vet.display_name.split(' ')[-1][0] }}</div>{% endif %}
+        <div>
+          <h1 class="mb-0">{{ vet.display_name }}</h1>
+          <p class="text-muted mb-0">{{ vet.qualifications }}{% if vet.clinic_name %} · {{ vet.clinic_name }}{% endif %}{% if vet.city %}, {{ vet.city }}{% endif %}</p>
+          {% if vet.is_verified %}{{ badge('✓ Verified vet', 'success') }}{% endif %}
+          <div class="row row-wrap mt-4">
+            {% for lang in vet.languages or [] %}{{ tag(lang) }}{% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="vet-stats mt-5">
+        <div><div class="fact-value">★ {{ vet.rating }}</div><div class="text-sm text-muted">{{ vet.reviews_count }} reviews</div></div>
+        <div><div class="fact-value">{{ vet.experience_years }} yrs</div><div class="text-sm text-muted">experience</div></div>
+        <div><div class="fact-value">{{ '{:,}'.format(vet.pets_treated) }}</div><div class="text-sm text-muted">pets treated</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>About</h3>
+      <p class="text-muted">{{ vet.bio or 'No bio provided.' }}</p>
+    </div>
+
+    <div class="card">
+      <h3>Services &amp; fees</h3>
+      <div class="stack text-sm">
+        <div class="row spread toggle-row"><span>General consultation</span><strong>₹{{ vet.consult_fee|int if vet.consult_fee else '—' }}</strong></div>
+        {% if vet.video_fee %}<div class="row spread toggle-row"><span>Video consult</span><strong>₹{{ vet.video_fee|int }}</strong></div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <aside class="stack">
+    <div class="card">
+      <h3>Book an appointment</h3>
+      <p class="text-muted text-sm">Choose a time that works for you.</p>
+      <a class="btn btn-primary btn-block" href="{{ url_for('vet_booking.book', slug=vet.slug) }}">Book a Vet</a>
+    </div>
+    <div class="card card-muted">
+      <div class="fw-600">Clinic</div>
+      <p class="text-sm text-muted mb-0">{{ vet.clinic_address or vet.clinic_name }}</p>
+    </div>
+    <a class="btn btn-outline btn-block" href="{{ url_for('reviews.show', target_type='vet', target_id=vet.id) }}">Read reviews</a>
+    <a class="btn btn-primary btn-block" href="{{ url_for('reviews.show', target_type='vet', target_id=vet.id) }}">Rate &amp; review</a>
+    {% if current_user.is_authenticated and current_user.role.value == 'adopter' %}
+      <details class="card">
+        <summary class="text-sm">Report a safety concern</summary>
+        <form class="mt-4" method="post" action="{{ url_for('reporting.report_provider', target_type='vet', target_id=vet.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="field">
+            <label for="vet-report-reason">Reason</label>
+            <select id="vet-report-reason" class="select" name="reason" required>
+              <option value="">Select a reason</option>
+              {% for reason in report_reasons %}<option value="{{ reason }}">{{ reason }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="vet-report-details">Details (optional)</label>
+            <textarea id="vet-report-details" class="textarea" name="details" maxlength="2000" rows="3"></textarea>
+          </div>
+          <button class="btn btn-outline btn-block" type="submit">Send report to admin</button>
+        </form>
+      </details>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

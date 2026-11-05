@@ -1,0 +1,79 @@
+{% extends 'layouts/shelter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Appointments · {{ APP_NAME }}{% endblock %}
+{% block page_head %}
+  <div class="row spread">
+    <div><h1 class="mb-0">Appointments</h1><p class="text-muted mb-0">Meet & greets, home visits, and pick-ups</p></div>
+  </div>
+{% endblock %}
+{% block content %}
+<div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--space-5); align-items: start;">
+  <div class="stack">
+    {% for appt in appointments %}
+      <div class="card row spread">
+        <div class="row" style="gap: var(--space-4);">
+          <div class="appt-date">
+            <div class="appt-month">{{ appt.scheduled_for.strftime('%b')|upper }}</div>
+            <div class="appt-day">{{ appt.scheduled_for.strftime('%d') }}</div>
+          </div>
+          <div>
+            <div class="fw-600">{{ appt.kind.label }}{% if appt.pet %} · {{ appt.pet.name }}{% endif %}</div>
+            <div class="text-sm text-muted">
+              {{ appt.scheduled_for.strftime('%H:%M') }}
+              {%- if appt.location %} · {{ appt.location }}{% endif %}
+              {%- if appt.note %} · {{ appt.note }}{% endif %}
+            </div>
+            {% if appt.application_id and appt.kind.value == 'home_visit' and appt.status.value == 'confirmed' %}
+              <div class="text-sm {{ 'text-success' if appt.adopter_confirmed else 'text-muted' }}">
+                {{ 'Adopter confirmed availability' if appt.adopter_confirmed else 'Awaiting adopter availability confirmation' }}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="row" style="gap: var(--space-3);">
+          {{ badge(appt.status.label, appt.status.badge_variant) }}
+          {% if appt.status.value == 'pending' and appt.application_id %}
+            <form method="post" action="{{ url_for('shelter_ops.confirm_appointment', appt_id=appt.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-primary btn-sm" type="submit">Confirm request</button>
+            </form>
+          {% endif %}
+          {% if appt.status.value == 'confirmed' or (appt.status.value == 'pending' and not appt.application_id) %}
+            <form method="post" action="{{ url_for('shelter_ops.checkin_appointment', appt_id=appt.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-primary btn-sm" type="submit">Check in</button>
+            </form>
+          {% endif %}
+          {% if appt.application_id and appt.kind.value == 'home_visit' and appt.status.value in ['confirmed', 'checked_in'] %}
+            <form method="post" action="{{ url_for('shelter_ops.complete_home_visit', appt_id=appt.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-primary btn-sm" type="submit">Mark visit complete</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      <div class="card"><p class="text-muted mb-0">No appointments scheduled.</p></div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h3>Schedule appointment</h3>
+    <form method="post" action="{{ url_for('shelter_ops.create_appointment') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field"><label>Type</label>
+        <select class="select" name="kind">
+          <option value="meet_greet">Meet & greet</option>
+          <option value="home_visit">Home visit</option>
+          <option value="pickup">Pick-up</option>
+        </select>
+      </div>
+      <div class="field"><label>Date &amp; time</label>
+        <input class="input" type="datetime-local" name="scheduled_for"></div>
+      <div class="field"><label>Location</label><input class="input" name="location" placeholder="At shelter"></div>
+      <div class="field"><label>Note</label><input class="input" name="note" placeholder="Coordinator: Kavya"></div>
+      <button class="btn btn-primary btn-block" type="submit">Schedule</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

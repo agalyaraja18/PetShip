@@ -1,0 +1,68 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag, progress %}
+{% block title %}Reviews · {{ target_name }} · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/community.css') }}">
+{% endblock %}
+{% block content %}
+<div class="reviews-layout">
+  <aside class="card review-summary-card">
+    <div class="fw-600">{{ target_name }}</div>
+    <div class="text-sm text-muted">Reviews from the community</div>
+    <div class="review-avg">{{ summary.avg }}</div>
+    <div class="text-primary">{{ '★' * (summary.avg|round|int) }}{{ '☆' * (5 - summary.avg|round|int) }}</div>
+    <div class="text-sm text-muted">Based on {{ summary.count }} reviews</div>
+    <div class="review-dist mt-4">
+      {% for star in [5,4,3,2,1] %}
+        <div class="row" style="gap: var(--space-2); align-items:center;">
+          <span class="text-sm">{{ star }}★</span>
+          {{ progress((100 * summary.dist[star] / summary.count)|int if summary.count else 0) }}
+          <span class="text-sm text-muted">{{ summary.dist[star] }}</span>
+        </div>
+      {% endfor %}
+    </div>
+    {% if current_user.is_authenticated and current_user.role.value == 'adopter' %}
+      <form method="post" action="{{ url_for('reviews.write', target_type=target_type, target_id=target_id) }}" class="mt-5">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field"><label>Your rating</label>
+          <select class="select" name="rating">
+            {% for s in [5,4,3,2,1] %}<option value="{{ s }}">{{ s }} stars</option>{% endfor %}
+          </select>
+        </div>
+        <textarea class="textarea" name="body" placeholder="Share your experience..."></textarea>
+        <button class="btn btn-primary btn-block mt-4" type="submit">Write a review</button>
+      </form>
+    {% elif not current_user.is_authenticated %}
+      <a class="btn btn-primary btn-block mt-5" href="{{ url_for('auth.login', next=request.path) }}">Log in to review</a>
+    {% endif %}
+  </aside>
+
+  <div>
+    <div class="row spread">
+      <h2 class="mb-0">What people say</h2>
+      <div class="row">
+        <a class="pill {{ 'is-active' if sort == 'recent' }}" href="?sort=recent">Most recent</a>
+        <a class="pill {{ 'is-active' if sort == 'helpful' }}" href="?sort=helpful">Most helpful</a>
+      </div>
+    </div>
+    <div class="stack mt-4">
+      {% for r in items %}
+        <div class="card">
+          <div class="row spread">
+            <div class="row" style="gap: var(--space-3);">
+              <div class="avatar avatar-md profile-initials">{{ r.author.initials }}</div>
+              <div><div class="fw-600">{{ r.author.full_name }}</div>
+                <div class="text-sm text-muted">{{ r.created_at.strftime('%d %b %Y') }}</div></div>
+            </div>
+            <div class="text-primary">{{ '★' * r.rating }}{{ '☆' * (5 - r.rating) }}</div>
+          </div>
+          {% if r.body %}<p class="mt-4 mb-0">{{ r.body }}</p>{% endif %}
+          {% if r.reply %}<div class="card card-muted mt-4"><strong>Reply:</strong> {{ r.reply }}</div>{% endif %}
+        </div>
+      {% else %}
+        <div class="card"><p class="text-muted mb-0">No reviews yet. Be the first!</p></div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

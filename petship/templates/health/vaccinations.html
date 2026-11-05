@@ -1,0 +1,29 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import stat_card, badge %}
+{% block title %}Vaccination tracker · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Vaccination tracker{% endblock %}
+{% block page_subtitle %}{{ pet.name }}{% endblock %}
+{% block content %}
+<div class="grid grid-3 mb-5">
+  {{ stat_card('Up to date', up_to_date ~ ' of ' ~ total) }}
+  {{ stat_card('Next due', next_due.due_on.strftime('%d %b') if next_due else '—') }}
+  {{ stat_card('Overdue', overdue) }}
+</div>
+
+<div class="card">
+  <table class="data-table">
+    <thead><tr><th>Vaccine</th><th>Schedule</th><th>Last given</th><th>Due</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for v in vaccinations %}
+        <tr>
+          <td><div class="fw-600">{{ v.name }}</div><div class="text-sm text-muted">{{ v.kind or '' }}</div></td>
+          <td>{{ v.schedule or '—' }}</td>
+          <td>{{ v.last_given.strftime('%d %b %Y') if v.last_given else '—' }}</td>
+          <td>{{ v.due_on.strftime('%d %b %Y') if v.due_on else '—' }}</td>
+          <td>{{ badge(v.status.label, v.status.badge_variant) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

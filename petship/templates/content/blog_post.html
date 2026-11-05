@@ -1,0 +1,32 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag %}
+{% block title %}{{ post.title }} · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/content.css') }}">
+{% endblock %}
+{% block content %}
+<div class="blog-article">
+  <div>
+    {{ tag(post.category) }}
+    <h1 class="mt-4 mb-0">{{ post.title }}</h1>
+    <p class="text-muted">
+      {{ post.author }} · {{ post.created_at.strftime('%d %b %Y') }} · {{ post.read_minutes }} min read
+    </p>
+    <div class="blog-hero" data-cat="{{ post.category }}"
+         {% if post.cover_url %}style="background-image:url('{{ post.cover_url }}')"{% endif %}></div>
+    <div class="blog-body mt-5">
+      <p class="text-lg">{{ post.excerpt }}</p>
+      {% for para in (post.body or '').split('\n\n') %}
+        {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  <aside class="blog-aside">
+    <div class="card card-muted">
+      <div class="fw-600">Ready to adopt?</div>
+      <p class="text-sm text-muted">Find a pet that matches your life with AI matching.</p>
+      <a class="btn btn-primary btn-block" href="{{ url_for('pets.browse') }}">Find Your Match</a>
+    </div>
+  </aside>
+</div>
+{% endblock %}

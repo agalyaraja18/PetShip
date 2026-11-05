@@ -1,0 +1,13 @@
+{#  Results grid. Rendered standalone for htmx swaps and inline on first load.
+    Expects `results` and `count`. #}
+<div class="grid grid-4 pet-grid" id="pet-grid">
+  {% for pet in results %}
+    {% include 'pets/_pet_card.html' %}
+  {% else %}
+    <div class="card" style="grid-column: 1 / -1;">
+      <p class="text-muted mb-0">No pets match those filters. Try widening your search.</p>
+    </div>
+  {% endfor %}
+</div>
+{# Out-of-band swap keeps the result count in sync on htmx updates. #}
+<span id="count" hx-swap-oob="true">{{ count }}</span>

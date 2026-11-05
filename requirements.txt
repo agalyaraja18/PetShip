@@ -1,0 +1,57 @@
+# ---- Core web framework ----
+Flask==3.0.3
+Werkzeug==3.0.4
+Jinja2==3.1.4
+
+# ---- Flask extensions ----
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.7
+Flask-Login==0.6.3
+Flask-WTF==1.2.1
+WTForms==3.1.2
+email-validator==2.2.0
+phonenumbers==9.0.13
+Flask-Mail==0.10.0
+Flask-SocketIO==5.3.6
+
+# ---- Database drivers ----
+# psycopg (v3) for PostgreSQL in production; SQLite is used by default in dev/test.
+psycopg[binary]==3.2.3
+
+# ---- Real-time / async worker + message queue ----
+python-socketio==5.11.4
+python-engineio==4.9.1
+eventlet==0.37.0
+redis==5.1.1
+
+# ---- Scheduling (reminders / follow-ups) ----
+APScheduler==3.10.4
+
+# ---- PDF generation (free, no account) ----
+reportlab==4.2.2
+pypdf==5.9.0
+
+# ---- Image handling / perceptual hashing for lost & found ----
+Pillow==10.4.0
+ImageHash==4.3.1
+
+# ---- Config / env ----
+python-dotenv==1.0.1
+
+# ---- Optional, keyed integrations (fallback-first; app runs without keys) ----
+google-generativeai==0.8.3
+firebase-admin==6.5.0
+resend==2.4.0
+Authlib==1.3.2
+requests==2.34.2
+# Pin transitive deps to versions `requests` recognizes (silences a runtime warning).
+urllib3==2.2.3
+charset-normalizer==3.3.2
+chardet==5.2.0
+
+# ---- Production server ----
+gunicorn==23.0.0
+
+# ---- Testing ----
+pytest==8.3.3
+pytest-flask==1.3.0

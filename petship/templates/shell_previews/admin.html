@@ -1,0 +1,15 @@
+{% extends 'layouts/admin.html' %}
+{% set active_nav = 'overview' %}
+{% from 'partials/macros.html' import stat_card %}
+{% block title %}Admin shell preview{% endblock %}
+{% block page_title %}Platform overview{% endblock %}
+{% block page_subtitle %}{% endblock %}
+{% block content %}
+<div class="grid grid-4 mb-5">
+  {{ stat_card('Users', '48.2k', '+6% this month') }}
+  {{ stat_card('Shelters', '312', '9 pending') }}
+  {{ stat_card('Vets', '540', '4 pending') }}
+  {{ stat_card('Adoptions', '1,284', 'This month') }}
+</div>
+<div class="card">This is the admin dark-sidebar shell preview.</div>
+{% endblock %}

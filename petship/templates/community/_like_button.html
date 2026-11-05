@@ -1,0 +1,9 @@
+{% if current_user.is_authenticated %}
+  <button class="post-action {{ 'is-liked' if liked }}" type="button"
+          hx-post="{{ url_for('community.like', post_id=post.id) }}"
+          hx-swap="outerHTML">
+    {{ '♥' if liked else '♡' }} {{ post.like_count }}
+  </button>
+{% else %}
+  <a class="post-action" href="{{ url_for('auth.login') }}">♡ {{ post.like_count }}</a>
+{% endif %}

@@ -1,0 +1,52 @@
+{% extends 'auth/_auth_base.html' %}
+{% from 'partials/macros.html' import field %}
+{% block title %}Set a new password · {{ APP_NAME }}{% endblock %}
+
+{% block visual %}
+  <div class="auth-quote">
+    <p>A fresh start.</p>
+    <div class="cite">Choose a strong new password.</div>
+  </div>
+{% endblock %}
+
+{% block panel %}
+<div class="auth-icon">🔒</div>
+{% if code_verified %}
+  <h1>Set a new password</h1>
+  <p class="text-sm text-muted">Step 3 of 4 · Enter your PetShip user ID, then create and confirm a new password.</p>
+{% else %}
+  <h1>Set a new password</h1>
+  <p class="text-sm text-muted">Enter your user ID, then create and confirm a new password.</p>
+{% endif %}
+
+<form method="post" x-data="{ pw: '' }">
+  {{ form.hidden_tag() }}
+
+  {% if code_verified %}
+    {{ field(form.public_id) }}
+  {% endif %}
+
+  <div class="field">
+    {{ form.password.label }}
+    <input type="password" class="input" name="{{ form.password.name }}"
+           id="{{ form.password.id }}" x-model="pw">
+    {% for error in form.password.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+    <div class="pw-strength mt-4">
+      <span :class="{ 'on': pw.length >= 8 }"></span>
+      <span :class="{ 'on': /[0-9]/.test(pw) }"></span>
+      <span :class="{ 'on': /[A-Z]/.test(pw) }"></span>
+      <span :class="{ 'on': pw.length >= 12 }"></span>
+    </div>
+  </div>
+
+  {{ field(form.confirm) }}
+
+  <ul class="pw-rules text-sm text-muted">
+    <li :class="{ 'met': pw.length >= 8 }">At least 8 characters</li>
+    <li :class="{ 'met': /[0-9]/.test(pw) }">One number</li>
+    <li :class="{ 'met': /[A-Z]/.test(pw) }">One uppercase letter</li>
+  </ul>
+
+  <button type="submit" class="btn btn-primary btn-block btn-lg mt-4">Update password and continue to login</button>
+</form>
+{% endblock %}

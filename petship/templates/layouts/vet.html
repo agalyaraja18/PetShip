@@ -1,0 +1,19 @@
+{% extends 'layouts/sidebar_base.html' %}
+{% set shell_class = 'shell-light' %}
+{% set active_nav = active_nav | default('') %}
+
+{% block sidebar_sub %}
+  <div class="sidebar-sub">{{ clinic_name | default('CareVet Clinic') }}</div>
+{% endblock %}
+
+{% block sidenav %}
+  <li><a href="{{ url_for('vet_workspace.dashboard') }}" class="{{ 'is-active' if active_nav == 'dashboard' }}">Dashboard</a></li>
+  <li><a href="{{ url_for('vet_workspace.appointments') }}" class="{{ 'is-active' if active_nav == 'appointments' }}">Appointments</a></li>
+  <li><a href="{{ url_for('vet_workspace.patients') }}" class="{{ 'is-active' if active_nav == 'patients' }}">Patients</a></li>
+  <li><a href="{{ url_for('vet_workspace.new_patient') }}" class="{{ 'is-active' if active_nav == 'newpatient' }}">New Patient</a></li>
+  <li><a href="{{ url_for('messages.inbox') }}" class="{{ 'is-active' if active_nav == 'messages' }}">Messages</a></li>
+  <li><a href="{{ url_for('vet_workspace.notifications') }}" class="{{ 'is-active' if active_nav == 'notifications' }}">Notifications</a></li>
+  <li><a href="{{ url_for('vet.manage_profile') }}" class="{{ 'is-active' if active_nav == 'profile' }}">Profile</a></li>
+  <li><a href="{{ url_for('vet_workspace.settings') }}" class="{{ 'is-active' if active_nav == 'settings' }}">Settings</a></li>
+  <li><a href="{{ url_for('feedback.submit') }}">Feedback</a></li>
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends 'layouts/root.html' %}
+{% block title %}Adoption application · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/adoption.css') }}">
+{% endblock %}
+{% block body %}
+<header class="topbar">
+  <div class="container row spread">
+    <a class="brand" href="{{ url_for('pets.home') }}">{{ APP_NAME }}</a>
+    <span class="text-sm text-muted">Application {{ app_row.reference }} · Step {{ step }} of {{ total_steps }}</span>
+  </div>
+</header>
+
+<main class="container wizard-main">
+  {% include 'partials/flashes.html' %}
+
+  <div class="wizard-steps">
+    {% for i in range(1, total_steps + 1) %}
+      <div class="wizard-step {{ 'is-done' if i < step }} {{ 'is-current' if i == step }}">
+        <span class="wizard-step-num">{{ i }}</span> {{ step_titles[i] }}
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="wizard-layout">
+    <form method="post" class="card" action="{{ url_for('adoption.wizard', app_id=app_row.id, step=step) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      {% if step == 1 %}
+        <h2>About you and your home</h2>
+        <p class="text-muted">This helps the shelter make sure {{ pet.name }} will be happy and safe.</p>
+        <div class="field">
+          <label for="applicant-name">Full name</label>
+          <input class="input" id="applicant-name" name="applicant_name" maxlength="160"
+                 value="{{ answers.get('applicant_name', current_user.full_name) }}" required>
+        </div>
+        <div class="field">
+          <label for="applicant-phone">Phone number</label>
+          <input class="input" id="applicant-phone" name="applicant_phone" type="tel" maxlength="40"
+                 value="{{ answers.get('applicant_phone', current_user.phone or '') }}" required>
+        </div>
+        <div class="field">
+          <label for="applicant-address">Address</label>
+          <textarea class="textarea" id="applicant-address" name="applicant_address" maxlength="300" required>{{ answers.get('applicant_address', current_user.address or '') }}</textarea>
+        </div>
+        <div class="field">
+          <label>What type of home do you live in?</label>
+          <div class="row row-wrap chip-choice" data-name="home_type">
+            {% for opt in ['Apartment', 'Independent house', 'Villa with garden'] %}
+              <label class="pill {{ 'is-active' if answers.get('home_type') == opt }}">
+                <input type="radio" name="home_type" value="{{ opt }}" hidden
+                       {{ 'checked' if answers.get('home_type') == opt }}>{{ opt }}</label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="field">
+          <label>Do you own or rent?</label>
+          <div class="row row-wrap chip-choice">
+            {% for opt in ['Own', 'Rent (landlord approval needed)'] %}
+              <label class="pill {{ 'is-active' if answers.get('ownership') == opt }}">
+                <input type="radio" name="ownership" value="{{ opt }}" hidden
+                       {{ 'checked' if answers.get('ownership') == opt }}>{{ opt }}</label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="field">
+          <label for="sleep">Where will {{ pet.name }} sleep?</label>
+          <input class="input" id="sleep" name="sleep_location"
+                 value="{{ answers.get('sleep_location', '') }}"
+                 placeholder="Indoors, in a dog bed in the living room">
+        </div>
+        <div class="field">
+          <label>How many hours will they be alone each day?</label>
+          <div class="row row-wrap chip-choice">
+            {% for opt in ['0 to 2', '2 to 4', '4 to 8', '8+'] %}
+              <label class="pill {{ 'is-active' if answers.get('hours_alone') == opt }}">
+                <input type="radio" name="hours_alone" value="{{ opt }}" hidden
+                       {{ 'checked' if answers.get('hours_alone') == opt }}>{{ opt }}</label>
+            {% endfor %}
+          </div>
+        </div>
+
+      {% elif step == 2 %}
+        <h2>Your experience</h2>
+        <div class="field">
+          <label for="prior">Have you had pets before? Tell us about them.</label>
+          <textarea class="textarea" id="prior" name="prior_experience">{{ answers.get('prior_experience', '') }}</textarea>
+        </div>
+        <div class="field">
+          <label>Do you have other pets now?</label>
+          <div class="row row-wrap chip-choice">
+            {% for opt in ['No', 'Dogs', 'Cats', 'Other'] %}
+              <label class="pill {{ 'is-active' if answers.get('other_pets') == opt }}">
+                <input type="radio" name="other_pets" value="{{ opt }}" hidden
+                       {{ 'checked' if answers.get('other_pets') == opt }}>{{ opt }}</label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="field">
+          <label for="current-pets-count">How many pets do you currently have?</label>
+          <input class="input" id="current-pets-count" name="current_pets_count"
+                 type="number" min="0" max="99"
+                 value="{{ answers.get('current_pets_count', '') }}" required>
+        </div>
+
+      {% elif step == 3 %}
+        <h2>References</h2>
+        <p class="text-muted">A reference helps shelters place pets responsibly.</p>
+        <div class="field">
+          <label for="ref_name">Reference name</label>
+          <input class="input" id="ref_name" name="ref_name" value="{{ answers.get('ref_name', '') }}">
+        </div>
+        <div class="field">
+          <label for="ref_phone">Reference phone</label>
+          <input class="input" id="ref_phone" name="ref_phone" value="{{ answers.get('ref_phone', '') }}">
+        </div>
+        <div class="field">
+          <label for="vet_name">Your vet (optional)</label>
+          <input class="input" id="vet_name" name="vet_name" value="{{ answers.get('vet_name', '') }}">
+        </div>
+
+      {% else %}
+        <h2>Review &amp; submit</h2>
+        <p class="text-muted">Please confirm your answers before submitting.</p>
+        <dl class="review-list">
+          {% for k, v in answers.items() %}
+            <div class="row spread review-row">
+              <dt class="text-muted">{{ k.replace('_', ' ')|capitalize }}</dt>
+              <dd class="fw-600">{{ v }}</dd>
+            </div>
+          {% endfor %}
+        </dl>
+      {% endif %}
+
+      <div class="row spread mt-5">
+        {% if step > 1 %}
+          <button class="btn btn-outline" type="submit" name="action" value="back">&larr; Back</button>
+        {% else %}<span></span>{% endif %}
+        <div class="row">
+          <button class="btn btn-ghost" type="submit" name="action" value="save">Save draft</button>
+          {% if step < total_steps %}
+            <button class="btn btn-primary" type="submit" name="action" value="next">Continue &rarr;</button>
+          {% else %}
+            <button class="btn btn-primary" type="submit" name="action" value="submit">Submit application</button>
+          {% endif %}
+        </div>
+      </div>
+    </form>
+
+    <aside class="card card-muted wizard-aside">
+      <div class="text-sm text-primary fw-600">You're applying for</div>
+      <h3 class="mt-4 mb-0">{{ pet.name }}</h3>
+      <p class="text-sm text-muted">{{ pet.breed or pet.species.label }} · {{ pet.age_text }} · {{ pet.shelter.name }}</p>
+      {% if pet.adoption_fee %}
+        <p class="text-sm text-muted mb-0">Adoption fee ₹{{ pet.adoption_fee|int }} includes vaccines, neutering, and microchip.</p>
+      {% endif %}
+    </aside>
+  </div>
+</main>
+<script>
+  // Radio "pill" chips: reflect selection and allow single-choice toggling.
+  document.querySelectorAll('.chip-choice').forEach(function (group) {
+    group.addEventListener('click', function (e) {
+      var label = e.target.closest('.pill');
+      if (!label) return;
+      var input = label.querySelector('input');
+      if (!input) return;
+      setTimeout(function () {
+        group.querySelectorAll('.pill').forEach(function (p) {
+          p.classList.toggle('is-active', p.querySelector('input').checked);
+        });
+      }, 0);
+    });
+  });
+</script>
+{% endblock %}

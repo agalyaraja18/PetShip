@@ -1,0 +1,37 @@
+{% extends 'layouts/public.html' %}
+{% from 'partials/macros.html' import tag %}
+{% block title %}Happy tails · {{ APP_NAME }}{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/content.css') }}">
+{% endblock %}
+{% block content %}
+<div class="text-center">
+  <h1 class="mb-0">Happy tails</h1>
+  <p class="text-muted">{{ '{:,}'.format(adopted) }} pets have found their people. Here are a few of their stories.</p>
+  {% if current_user.is_authenticated %}
+    <a class="btn btn-primary" href="{{ url_for('content.share_story') }}">Share your story</a>
+  {% endif %}
+</div>
+
+{% if featured %}
+<div class="card featured-story mt-5">
+  <div class="featured-photo" {% if featured.photo_url %}style="background-image:url('{{ featured.photo_url }}')"{% endif %} aria-hidden="true"></div>
+  <div>
+    {{ tag('Featured story') }}
+    <blockquote class="featured-quote">&ldquo;{{ featured.quote }}&rdquo;</blockquote>
+    <p class="text-muted">{{ featured.family }}{% if featured.body %} · {{ featured.body }}{% endif %}</p>
+    <a class="btn btn-primary" href="{{ url_for('pets.browse') }}">Find your match</a>
+  </div>
+</div>
+{% endif %}
+
+<div class="grid grid-3 mt-5">
+  {% for story in others %}
+    <div class="card">
+      <div class="story-mini-photo" {% if story.photo_url %}style="background-image:url('{{ story.photo_url }}')"{% endif %} aria-hidden="true"></div>
+      <div class="fw-600 mt-4">{{ story.family }}</div>
+      <p class="text-sm text-muted mb-0">&ldquo;{{ story.quote }}&rdquo;</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

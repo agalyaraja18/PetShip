@@ -1,0 +1,6 @@
+{#  Two new bubbles appended after an htmx send. An OOB input keeps the
+    conversation id in sync so follow-up messages attach to the same thread. #}
+<div class="chat-bubble user"><p class="mb-0">{{ user_message }}</p></div>
+<div class="chat-bubble assistant"><p class="mb-0">{{ answer }}</p></div>
+<input type="hidden" name="conversation_id" value="{{ conversation_id }}"
+       hx-swap-oob="true" id="conversation-id-field">

@@ -1,0 +1,68 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}My appointments · {{ APP_NAME }}{% endblock %}
+{% block page_head %}
+  <div class="row spread row-wrap">
+    <div><h1 class="mb-0">My appointments</h1>
+      <p class="text-muted mb-0">{{ upcoming|length }} upcoming · {{ past|length }} past</p></div>
+    <a class="btn btn-primary" href="{{ url_for('vet.directory') }}">+ Book a Vet</a>
+  </div>
+{% endblock %}
+{% block content %}
+<div class="row row-wrap mb-5">
+  {% for key, label in categories %}
+    <a class="pill {{ 'is-active' if category == key }}" href="{{ url_for('adopter.appointments', category=key) }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<h3>Upcoming</h3>
+<div class="stack mb-5">
+  {% if upcoming_grouped %}
+    {% for service, appointments in upcoming_grouped.items() %}
+      <section class="card">
+        <h3 class="mb-4">{{ service }}</h3>
+        <div class="stack">
+          {% for a in appointments %}
+            <div class="row spread row-wrap toggle-row">
+              <div class="row" style="gap: var(--space-4);">
+                <div class="appt-date">
+                  <div class="appt-month">{{ a.scheduled_for.strftime('%b')|upper }}</div>
+                  <div class="appt-day">{{ a.scheduled_for.strftime('%d') }}</div>
+                </div>
+                <div>
+                  <div class="fw-600">{{ a.note or 'Pet' }} · {{ a.service or a.kind.label }}</div>
+                  <div class="text-sm text-muted">{{ a.vet.full_name if a.vet else 'Veterinarian' }} · {{ a.location or '' }} · {{ a.scheduled_for.strftime('%H:%M') }}</div>
+                  {% if a.reference %}<div class="text-sm text-muted">Reference: {{ a.reference }}</div>{% endif %}
+                </div>
+              </div>
+              <div class="row row-wrap" style="gap:var(--space-2); align-items:center;">
+                {{ badge(a.status.label, a.status.badge_variant) }}
+                <form method="post" action="{{ url_for('adopter.cancel_appointment', appt_id=a.id) }}"
+                      onsubmit="return confirm('Cancel this vet appointment?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-outline btn-sm">Cancel appointment</button>
+                </form>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  {% else %}
+    <div class="card"><p class="text-muted mb-0">No upcoming appointments. <a href="{{ url_for('vet.directory') }}">Book a vet →</a></p></div>
+  {% endif %}
+</div>
+
+{% if past %}
+<h3>Past</h3>
+<div class="stack">
+  {% for a in past %}
+    <div class="card row spread">
+      <div><div class="fw-600">{{ a.note or 'Pet' }} · {{ a.service or a.kind.label }}</div>
+        <div class="text-sm text-muted">{{ a.scheduled_for.strftime('%d %b %Y') }}</div></div>
+      {{ badge(a.status.label, 'neutral') }}
+    </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
