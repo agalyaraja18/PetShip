@@ -26,6 +26,31 @@ def _bool(value: str | None, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _database_url() -> str | None:
+    """Return the DB URL normalised for psycopg v3.
+
+    Accepts the various PostgreSQL URL forms Render/Heroku hand out and rewrites
+    them to the ``postgresql+psycopg://`` driver. For managed Postgres (e.g.
+    Render) that requires TLS, ``sslmode=require`` is appended when the caller
+    hasn't specified an sslmode, unless DB_SSL_DISABLE is set (local Postgres).
+    """
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        return None
+
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+psycopg://", 1)
+    elif url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+
+    is_postgres = url.startswith("postgresql+psycopg://")
+    ssl_disabled = _bool(os.environ.get("DB_SSL_DISABLE"), False)
+    if is_postgres and not ssl_disabled and "sslmode=" not in url:
+        sep = "&" if "?" in url else "?"
+        url = f"{url}{sep}sslmode=require"
+    return url
+
+
 class BaseConfig:
     """Settings shared by every environment."""
 
@@ -105,7 +130,7 @@ class DevelopmentConfig(BaseConfig):
     DEBUG = True
     # Fall back to a local SQLite file when no DATABASE_URL is provided so the
     # app runs with zero external services in development.
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or (
+    SQLALCHEMY_DATABASE_URI = _database_url() or (
         "sqlite:///" + str(INSTANCE_DIR / "petship-dev.sqlite")
     )
 
@@ -125,7 +150,7 @@ class TestingConfig(BaseConfig):
 
 class ProductionConfig(BaseConfig):
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    SQLALCHEMY_DATABASE_URI = _database_url()
     SESSION_COOKIE_SECURE = True
     REMEMBER_COOKIE_SECURE = True
 

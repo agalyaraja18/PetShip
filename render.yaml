@@ -1,0 +1,29 @@
+# ============================================================================
+# Render blueprint for PetShip (Docker service).
+#
+# Migrations are NOT run here: the Docker entrypoint (docker/entrypoint.sh)
+# waits for the database to become reachable, then runs `flask db upgrade`
+# with retry logic before starting gunicorn. Keeping migrations in the
+# entrypoint gives a single, robust startup path with clear logging.
+#
+# DATABASE_URL must be set manually (sync: false). Use the Supabase
+# **Session pooler** connection string (IPv4), e.g.:
+#   postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+# The app appends sslmode=require automatically.
+# ============================================================================
+services:
+  - type: web
+    name: petship
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    envVars:
+      - key: FLASK_CONFIG
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: SOCKETIO_ASYNC_MODE
+        value: eventlet
