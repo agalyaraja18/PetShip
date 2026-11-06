@@ -108,6 +108,20 @@ def test_review_avg_computed(client, app):
     assert b"4.0" in resp.data  # (5+3)/2
 
 
+def test_shelter_dashboard_links_to_reviews_and_platform_feedback(client, app):
+    login_shelter(client)
+
+    response = client.get("/shelter/dashboard")
+
+    assert response.status_code == 200
+    page = response.data.decode()
+    reviews_link = page.index('href="/shelter/reviews"')
+    profile_link = page.index('href="/shelter/profile"')
+    settings_link = page.index('href="/shelter/settings"')
+    feedback_link = page.index('href="/feedback"')
+    assert reviews_link < profile_link < settings_link < feedback_link
+
+
 # ---- Follow-ups ----
 def _completed_application():
     """Create and complete an adoption so follow-ups are generated."""
@@ -278,7 +292,9 @@ def test_adopter_return_is_limited_to_first_30_days(client, app):
     assert application.returned_at is None
     assert client.get("/me/pets").status_code == 200
     assert pet_name.encode() not in client.get("/me/pets").data
-    assert b"Return submitted" in client.get("/me/returns").data
+    dashboard = client.get("/me/dashboard")
+    assert b"Return application status" in dashboard.data
+    assert b"Return submitted" in dashboard.data
 
 
 def test_shelter_can_record_return_after_30_day_support_response(client, app):
@@ -305,7 +321,7 @@ def test_shelter_can_record_return_after_30_day_support_response(client, app):
     assert application.returned_at is None
     assert application.return_reason == "Pet needs a different home."
     resp = client.get("/shelter/followups")
-    assert b"Open Return Pets" in resp.data
+    assert b"Open Return Requests" in resp.data
     resp = client.get("/shelter/returns")
     assert b"Return requests and collection visits" in resp.data
     assert b"Begin shelter review" in resp.data
@@ -365,9 +381,69 @@ def test_shelter_return_workflow_requires_scheduled_home_collection(client, app)
     with client.session_transaction() as session:
         session.pop("_flashes", None)
     assert pet_name.encode() not in client.get("/me/pets").data
-    assert b"Returned shelter" in client.get(
-        "/me/returns?status=returned_shelter"
+    assert b"Return completed" in client.get(
+        "/me/adoptions?tab=returns"
     ).data
+
+
+def test_shelter_can_complete_legacy_return_visit_after_local_time(client, app):
+    from zoneinfo import ZoneInfo
+
+    login_shelter(client)
+    application = _completed_application()
+    application.return_status = ReturnStatus.RETURN_VISIT.value
+    application.return_visit_at = (
+        datetime.now(timezone.utc)
+        .astimezone(ZoneInfo("Asia/Kolkata"))
+        .replace(tzinfo=None)
+        - timedelta(minutes=10)
+    )
+    application.return_visit_timezone = None
+    db.session.commit()
+
+    response = client.post(
+        f"/shelter/applications/{application.id}/return/action",
+        data={"action": "complete", "browser_timezone": "Asia/Kolkata"},
+        follow_redirects=True,
+    )
+
+    db.session.refresh(application)
+    assert response.status_code == 200
+    assert application.return_status == ReturnStatus.RETURNED_SHELTER.value
+    assert application.returned_at is not None
+    assert b"is now marked as returned to the shelter" in response.data
+
+
+def test_shelter_return_visit_uses_browser_timezone(client, app):
+    from zoneinfo import ZoneInfo
+
+    login_shelter(client)
+    application = _completed_application()
+    application.return_status = ReturnStatus.SHELTER_CONFIRMED.value
+    db.session.commit()
+
+    local_timezone = ZoneInfo("Asia/Kolkata")
+    local_visit = (
+        datetime.now(timezone.utc)
+        .astimezone(local_timezone)
+        + timedelta(hours=1)
+    ).replace(second=0, microsecond=0)
+    response = client.post(
+        f"/shelter/applications/{application.id}/return/action",
+        data={
+            "action": "schedule",
+            "scheduled_for": local_visit.strftime("%Y-%m-%dT%H:%M"),
+            "browser_timezone": local_timezone.key,
+        },
+        follow_redirects=True,
+    )
+
+    db.session.refresh(application)
+    stored_visit = application.return_visit_at.replace(tzinfo=timezone.utc)
+    expected_visit = local_visit.astimezone(timezone.utc)
+    assert response.status_code == 200
+    assert application.return_visit_timezone == local_timezone.key
+    assert abs((stored_visit - expected_visit).total_seconds()) < 60
 
 
 def test_shelter_returns_page_filters_by_workflow_status(client, app):
@@ -383,6 +459,16 @@ def test_shelter_returns_page_filters_by_workflow_status(client, app):
     submitted = client.get("/shelter/returns?status=submitted")
     assert b"Return submitted" in submitted.data
     assert b"Begin shelter review" in submitted.data
+    assert b">New <span class=\"text-muted\">(1)</span></a>" in submitted.data
+    assert b">Reviewed <span class=\"text-muted\">(0)</span></a>" in submitted.data
+    assert b">Confirmed <span class=\"text-muted\">(0)</span></a>" in submitted.data
+    assert b">Return visit <span class=\"text-muted\">(0)</span></a>" in submitted.data
+    assert b">Returned <span class=\"text-muted\">(0)</span></a>" in submitted.data
+    assert b"New <span class=\"text-muted\">(1)</span>" in submitted.data
+    assert b"Reviewed <span class=\"text-muted\">(0)</span>" in submitted.data
+    assert b"Returned <span class=\"text-muted\">(0)</span>" in submitted.data
+    assert b"Return submitted</li>" not in submitted.data
+    assert b"<ol" not in submitted.data
     assert b"aria-current=\"page\"" in submitted.data
 
     client.post(
@@ -390,6 +476,6 @@ def test_shelter_returns_page_filters_by_workflow_status(client, app):
         data={"action": "review"},
     )
     review = client.get("/shelter/returns?status=shelter_review")
-    assert b"Shelter review" in review.data
+    assert b"Return review" in review.data
     assert b"Confirm return" in review.data
     assert b"Begin shelter review" not in review.data

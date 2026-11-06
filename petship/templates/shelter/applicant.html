@@ -53,25 +53,31 @@
     <div>Current status: {{ badge(a.stage.label, 'primary') }}</div>
     <div class="row row-wrap">
     {% if a.stage.value in ['submitted', 'review', 'confirmed', 'home_visit', 'agreement'] %}
-    <form method="post" action="{{ url_for('shelter_requests.action', app_id=a.id) }}" class="row row-wrap">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-outline" name="action" value="decline" type="submit">Decline</button>
-      {% if a.stage.value == 'submitted' %}
-        <button class="btn btn-primary" name="action" value="review" type="submit">Start application review</button>
-      {% elif a.stage.value == 'review' %}
-        <button class="btn btn-primary" name="action" value="confirm" type="submit">Confirm application</button>
-      {% elif a.stage.value == 'home_visit' and home_visit and home_visit.status.value == 'completed' %}
-        <button class="btn btn-primary" name="action" value="agreement" type="submit">Move to adoption agreement</button>
-      {% endif %}
-      {% if a.stage.value == 'agreement' and agreement and agreement.is_fully_signed %}
-        <button class="btn btn-primary" name="action" value="complete" type="submit">Complete adoption</button>
-      {% endif %}
-    </form>
+      <form method="post" action="{{ url_for('shelter_requests.action', app_id=a.id) }}" class="row row-wrap">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline" name="action" value="decline" type="submit">Decline</button>
+        {% if a.stage.value == 'agreement' and welcome_home and welcome_home.status.value == 'confirmed' %}
+          <button class="btn btn-primary" name="action" value="complete" type="submit">Mark as adopted</button>
+        {% endif %}
+        {% if a.stage.value == 'submitted' %}
+          <button class="btn btn-primary" name="action" value="review" type="submit">Start application review</button>
+        {% elif a.stage.value == 'review' %}
+          <button class="btn btn-primary" name="action" value="confirm" type="submit">Confirm application</button>
+        {% endif %}
+        </form>
+        {% if a.stage.value == 'home_visit' and home_visit %}
+          <form method="post" action="{{ url_for('shelter_requests.action', app_id=a.id) }}" class="row row-wrap">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="agreement">
+            <button class="btn btn-primary" type="submit">Approve Adoption</button>
+          </form>
+        {% endif %}
     {% endif %}
     {% if a.stage.value == 'confirmed' %}
       <form method="post" action="{{ url_for('shelter_requests.action', app_id=a.id) }}" class="row row-wrap">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="home_visit">
+        <input type="hidden" name="browser_timezone" value="">
         <div class="field mb-0"><label for="visit-time">Home visit date &amp; time</label><input id="visit-time" class="input" type="datetime-local" name="scheduled_for" required></div>
         <div class="field mb-0"><label for="visit-location">Location</label><input id="visit-location" class="input" name="location" placeholder="Home address"></div>
         <div class="field mb-0"><label for="visit-note">Note</label><input id="visit-note" class="input" name="note" placeholder="Visit details"></div>
@@ -93,29 +99,53 @@
 
 {% if a.stage.value in ['agreement', 'complete'] %}
   <div class="card mt-5">
-    <h3>Adoption agreement</h3>
-    {% if agreement %}
-      <p class="text-muted">
-        {{ agreement.original_filename }} · Shelter signature: {{ agreement.shelter_signature or 'Pending' }} ·
-        Adopter signature: {{ agreement.adopter_signature or 'Pending' }}
-      </p>
-      <div class="row row-wrap">
-        <a class="btn btn-outline" href="{{ url_for('adoption.download_agreement', app_id=a.id) }}">Download agreement</a>
-        {% if agreement.is_fully_signed %}
-          <span class="text-sm text-success">Both parties signed.</span>
-        {% endif %}
-      </div>
-    {% else %}
-      <p class="text-muted">Upload the agreement PDF and sign it as the shelter representative. The adopter can then review and sign it.</p>
+    <h3>Adoption approved · Welcome home</h3>
+    {% if welcome_home %}
+      <p class="text-muted mb-0">Scheduled for <time class="js-local-time" datetime="{{ welcome_home.scheduled_for.isoformat() }}">{{ welcome_home.scheduled_for.strftime('%d %b %Y at %I:%M %p UTC') }}</time>{% if welcome_home.location %} · {{ welcome_home.location }}{% endif %}</p>
+      {% if a.stage.value == 'complete' %}
+        <p class="text-sm text-success mt-3 mb-0">Adoption completed. {{ a.pet.name }} was added to the adopter's My Pets.</p>
+      {% endif %}
     {% endif %}
-    {% if a.stage.value == 'agreement' and (not agreement or not agreement.adopter_signature) %}
-      <form method="post" action="{{ url_for('shelter_requests.share_agreement', app_id=a.id) }}" enctype="multipart/form-data" class="mt-4">
+    {% if a.stage.value == 'agreement' %}
+      {% if welcome_home %}
+        <button class="btn btn-outline mt-4" id="reschedule-welcome-home" type="button">Reschedule welcome home</button>
+      {% endif %}
+      <form method="post" action="{{ url_for('shelter_requests.action', app_id=a.id) }}" class="row row-wrap mt-4" id="welcome-home-form" {% if welcome_home %}hidden{% endif %}>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="field"><label>Agreement PDF</label><input class="input" type="file" name="agreement" accept="application/pdf" required></div>
-        <div class="field"><label>Shelter representative's full name</label><input class="input" name="signature" maxlength="120" required></div>
-        <button class="btn btn-primary" type="submit">{{ 'Replace and share agreement' if agreement else 'Share agreement' }}</button>
+        <input type="hidden" name="action" value="schedule_welcome_home">
+        <input type="hidden" name="browser_timezone" value="">
+        <div class="field mb-0">
+          <label for="welcome-time">Welcome-home date &amp; time</label>
+          <input id="welcome-time" class="input" type="datetime-local" name="scheduled_for" required>
+        </div>
+        <div class="field mb-0"><label for="welcome-location">Location</label><input id="welcome-location" class="input" name="location" placeholder="Adopter address"></div>
+        <button class="btn btn-primary" type="submit">{% if welcome_home %}Update and Share with Adopter{% else %}Fix and Share with Adopter{% endif %}</button>
       </form>
     {% endif %}
   </div>
 {% endif %}
+<script>
+  document.querySelectorAll('input[name="browser_timezone"]').forEach((input) => {
+    input.value = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
+  });
+  document.querySelectorAll('.js-local-time').forEach((element) => {
+    const scheduled = new Date(element.dateTime);
+    if (!Number.isNaN(scheduled.getTime())) {
+      element.textContent = new Intl.DateTimeFormat(undefined, {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(scheduled);
+    }
+  });
+  const rescheduleButton = document.getElementById('reschedule-welcome-home');
+  if (rescheduleButton) {
+    rescheduleButton.addEventListener('click', () => {
+      document.getElementById('welcome-home-form').hidden = false;
+      rescheduleButton.hidden = true;
+    });
+  }
+</script>
 {% endblock %}

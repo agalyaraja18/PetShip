@@ -19,6 +19,7 @@ from ..models.user import User
 # Maps a notification category to the preference key that gates it.
 CATEGORY_PREF = {
     "adoption": "adoption_updates",
+    "return": "return_requests",
     "health": "health_reminders",
     "appointments": "appointment_updates",
     "messages": "messages",

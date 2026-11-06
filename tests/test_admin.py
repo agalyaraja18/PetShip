@@ -40,6 +40,10 @@ def test_dashboard_stats(client, app):
     assert resp.status_code == 200
     assert b"Platform overview" in resp.data
     assert b"Users" in resp.data
+    assert b"Adopters" in resp.data
+    assert b"Shelter verification" in resp.data
+    assert b"Admin verification queue" in resp.data
+    assert b"PetShip usage over time" in resp.data
 
 
 def test_dashboard_verification_queue_excludes_deleted_shelter_accounts(client, app):
@@ -151,12 +155,44 @@ def test_shelter_verification_categories(client, app):
     all_shelters = client.get("/admin/verify/shelters?view=all").data
     visits = client.get("/admin/verify/shelters?view=visit").data
     approved = client.get("/admin/verify/shelters?view=approved").data
+    rejected = client.get("/admin/verify/shelters?view=rejected").data
     assert b"Visit Category Shelter" in all_shelters
     assert b"Approved Shelter" in all_shelters
     assert b"Visit Category Shelter" in visits
     assert b"Second Chance Home" not in visits
     assert b"Approved Shelter" in approved
     assert b"Visit Category Shelter" not in approved
+    assert b"Rejected" in rejected
+
+
+def test_rejected_shelters_and_vets_are_filterable(client, app):
+    login_admin(client)
+    shelter_user = User(
+        email="rejected-shelter@example.com",
+        first_name="Rejected",
+        role=UserRole.SHELTER,
+        registration_status="rejected",
+        is_active=False,
+    )
+    vet_user = User(
+        email="rejected-vet@example.com",
+        first_name="Rejected",
+        role=UserRole.VET,
+        registration_status="rejected",
+        is_active=False,
+    )
+    db.session.add_all([shelter_user, vet_user])
+    db.session.flush()
+    db.session.add_all([
+        Shelter(owner_id=shelter_user.id, name="Rejected Shelter", slug="rejected-shelter"),
+        VetProfile(user_id=vet_user.id, display_name="Rejected Vet", slug="rejected-vet"),
+    ])
+    db.session.commit()
+
+    shelter_response = client.get("/admin/verify/shelters?view=rejected")
+    vet_response = client.get("/admin/verify/vets?view=rejected")
+    assert b"Rejected Shelter" in shelter_response.data
+    assert b"Rejected Vet" in vet_response.data
 
 
 def test_shelter_verification_excludes_profiles_with_deleted_owners(client, app):
@@ -414,11 +450,52 @@ def test_listing_moderation_remove(client, app):
     assert pet.status is PetStatus.REMOVED
 
 
-def test_adoptions_kanban_renders(client, app):
+def test_listing_filters_cover_status_and_species(client, app):
+    from petship.models.application import Application, ApplicationStage
+    from petship.models.pet import Species
+
     login_admin(client)
-    resp = client.get("/admin/adoptions")
-    assert resp.status_code == 200
-    assert b"Adoption management" in resp.data
+    pet = db.session.scalar(db.select(Pet))
+    pet.species = Species.HAMSTER
+    pet.status = PetStatus.ADOPTED
+    adopter = db.session.scalar(
+        db.select(User).filter_by(email="agalya@demo.petship")
+    )
+    db.session.add(Application(
+        reference="PS-LIST-RETURNED",
+        applicant_id=adopter.id,
+        pet_id=pet.id,
+        stage=ApplicationStage.COMPLETE,
+        returned_at=datetime.now(timezone.utc),
+        return_reason="Needs a different home.",
+    ))
+    db.session.commit()
+
+    response = client.get("/admin/listings?status=adopted&species=hamster")
+    assert response.status_code == 200
+    assert pet.name.encode() in response.data
+    assert b"Adopted (" in response.data
+    assert b"Hamsters" in response.data
+    assert b"Fish" in response.data
+    returned_response = client.get("/admin/listings?status=returned")
+    assert pet.name.encode() in returned_response.data
+
+
+def test_adoption_management_filters_by_requested_stages(client, app):
+    login_admin(client)
+    submitted = client.get("/admin/adoptions?stage=submitted")
+    welcome_home = client.get("/admin/adoptions?stage=complete")
+    assert submitted.status_code == 200
+    assert welcome_home.status_code == 200
+    for label in (
+        b"Application Submitted",
+        b"Application Reviewed",
+        b"Application Confirmed",
+        b"Home Visit",
+        b"Adoption approved",
+        b"Welcome home",
+    ):
+        assert label in submitted.data
 
 
 def test_reports_queue(client, app):
@@ -474,11 +551,24 @@ def test_analytics_renders(client, app):
     resp = client.get("/admin/analytics")
     assert resp.status_code == 200
     assert b"Platform analytics" in resp.data
-    assert b"Adoption funnel" in resp.data
-    assert b"Adoptions by species" in resp.data
+    assert b"Adoption funnel" not in resp.data
+    assert b"Adoptions by species" not in resp.data
     assert b"Adopter registrations" in resp.data
     assert b"AI match usage" in resp.data
-    assert b"Returned pets" in resp.data
+    assert b"PetShip usage rate" in resp.data
+    assert b"Adoption and return activity" in resp.data
+    assert b"Registration activity" in resp.data
+    assert b"Pet listings by species" in resp.data
+    assert b"Lost, found and reunited activity" in resp.data
+    assert b"adoptionReturnChart" in resp.data
+    assert b"registrationChart" in resp.data
+    assert b"speciesChart" in resp.data
+    assert b"lostFoundChart" in resp.data
+    assert b"aiMatchChart" in resp.data
+    assert b"Blog and Success Story activity" in resp.data
+    assert b"contentActivityChart" in resp.data
+    assert b"Lost &amp; Found report locations" not in resp.data
+    assert b"leaflet.js" not in resp.data
 
 
 def test_analytics_counts_pet_returns_and_rate(client, app):
@@ -507,15 +597,16 @@ def test_analytics_counts_pet_returns_and_rate(client, app):
 
     resp = client.get("/admin/analytics?period=30d")
     assert resp.status_code == 200
-    assert b"Returned pets" in resp.data
+    assert b"Return count" in resp.data
     assert b"Return rate" in resp.data
     assert b"50.0%" in resp.data
-    assert b"Lost rate" in resp.data
-    assert b"Reunited rate" in resp.data
-    assert b"admin-lostfound-map" not in resp.data  # no geocoded reports yet
+    assert b"Lost count" in resp.data
+    assert b"Found count" in resp.data
+    assert b"Reunited count" in resp.data
+    assert b"admin-lostfound-map" not in resp.data
 
 
-def test_admin_lost_found_overview_and_map_analytics(client, app):
+def test_admin_lost_found_overview_and_analytics(client, app):
     from datetime import datetime, timezone
 
     from petship.models.lostfound import LostFoundReport, ReportKind, ReportStatus
@@ -568,21 +659,62 @@ def test_admin_lost_found_overview_and_map_analytics(client, app):
     assert b"Besant Nagar" in overview.data
     assert b"Recent (3)" in overview.data
     assert b"Lost (1)" in overview.data
-    assert b"Reunited (2)" in overview.data
+    assert b"Found (1)" in overview.data
+    assert b"Reunited (1)" in overview.data
     lost_view = client.get("/admin/lost-found?view=lost")
     assert b"Bella" in lost_view.data
     assert b"Unknown cat" not in lost_view.data
     reunited_view = client.get("/admin/lost-found?view=reunited")
-    assert b"Unknown cat" in reunited_view.data
+    assert b"Unknown cat" not in reunited_view.data
     assert b"Returned Bella" in reunited_view.data
+    found_view = client.get("/admin/lost-found?view=found")
+    assert b"Unknown cat" in found_view.data
+    assert b"Returned Bella" not in found_view.data
 
     analytics = client.get("/admin/analytics?period=30d")
     assert analytics.status_code == 200
-    assert b"Lost rate" in analytics.data
-    assert b"33.3%" in analytics.data
-    assert b"Reunited rate" in analytics.data
-    assert b"admin-lostfound-map" in analytics.data
-    assert b"13.001" in analytics.data
+    assert b"Lost count" in analytics.data
+    assert b"Found count" in analytics.data
+    assert b"Reunited count" in analytics.data
+    assert b"admin-lostfound-map" not in analytics.data
+    assert b"13.001" not in analytics.data
+
+
+def test_analytics_tracks_blog_and_success_story_activity(client, app):
+    from petship.models.content import BlogPost, SuccessStory
+
+    login_admin(client)
+    now = datetime.now(timezone.utc)
+    db.session.add_all([
+        BlogPost(
+            slug="analytics-blog-activity",
+            title="Analytics blog activity",
+            category="Care",
+            published=True,
+            created_at=now,
+            updated_at=now,
+        ),
+        BlogPost(
+            slug="analytics-draft-activity",
+            title="Analytics draft activity",
+            category="Care",
+            published=False,
+            created_at=now,
+            updated_at=now,
+        ),
+        SuccessStory(
+            title="Analytics success story",
+            created_at=now,
+            updated_at=now,
+        ),
+    ])
+    db.session.commit()
+
+    response = client.get("/admin/analytics?period=30d")
+    assert response.status_code == 200
+    assert b"Published blog posts" in response.data
+    assert b"Success stories" in response.data
+    assert b"Blog and Success Story activity" in response.data
 
 
 def test_analytics_period_filter(client, app):

@@ -43,9 +43,9 @@
   </section>
 
   <section class="card">
-    <h2 class="h3">Return Pet</h2>
-    <p class="text-sm text-muted">Submit a return request or track its status and collection visit.</p>
-    <a class="btn btn-outline btn-sm" href="{{ url_for('adopter.returns') }}">Open return requests</a>
+    <h2 class="h3">Adopted pets and returns</h2>
+    <p class="text-sm text-muted">Start a return request from an adopted pet within 30 days, or review completed returns.</p>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('adopter.adoptions', tab='adopted') }}">View adopted pets</a>
   </section>
 </div>
 {% endblock %}

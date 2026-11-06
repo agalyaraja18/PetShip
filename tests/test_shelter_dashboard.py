@@ -1,7 +1,11 @@
 """Task 14 tests: shelter dashboard, profile, and public page."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from petship.extensions import db
+from petship.models.application import Application, ApplicationStage
+from petship.models.application import ReturnStatus
 from petship.models.shelter import Shelter
 from petship.models.user import User, UserRole
 from petship.seed import seed_data
@@ -31,6 +35,10 @@ def test_dashboard_renders_for_shelter(client, app):
     assert b"Shelter overview" in resp.data
     assert b"Listed pets" in resp.data
     assert b"shell-dark" in resp.data  # dark shelter shell
+    assert b"Appointments" not in resp.data
+    assert b"Follow-ups" not in resp.data
+    assert b">Notifications<" not in resp.data
+    assert b"Return Requests" in resp.data
 
 
 def test_dashboard_stats_count_pets(client, app):
@@ -39,6 +47,61 @@ def test_dashboard_stats_count_pets(client, app):
     # Happy Paws has several listed pets in the seed.
     shelter = db.session.scalar(db.select(Shelter).filter_by(slug="happy-paws"))
     assert str(len(shelter.pets)).encode() in resp.data
+
+
+def test_dashboard_shows_shelter_metrics_recent_returns_and_monthly_adoptions(
+    client, app
+):
+    login_shelter(client)
+    shelter = db.session.scalar(db.select(Shelter).filter_by(slug="happy-paws"))
+    adopter = db.session.scalar(
+        db.select(User).filter_by(email="agalya@demo.petship")
+    )
+    pets = shelter.pets[:3]
+    now = datetime.now(timezone.utc)
+    db.session.add_all([
+        Application(
+            reference="PS-DASH-NEW",
+            applicant_id=adopter.id,
+            pet_id=pets[0].id,
+            stage=ApplicationStage.SUBMITTED,
+            return_status=ReturnStatus.SUBMITTED.value,
+            return_reason="Needs a different home.",
+            return_requested_at=now,
+        ),
+        Application(
+            reference="PS-DASH-ADOPTED",
+            applicant_id=adopter.id,
+            pet_id=pets[1].id,
+            stage=ApplicationStage.COMPLETE,
+            adopted_at=now,
+            return_status=ReturnStatus.RETURNED_SHELTER.value,
+            returned_at=now,
+            return_reason="Returned for care.",
+            return_requested_at=now,
+        ),
+    ])
+    db.session.commit()
+
+    response = client.get("/shelter/dashboard")
+
+    assert response.status_code == 200
+    for label in (
+        b"Listed pets",
+        b"Adopted pets",
+        b"Returned pets",
+        b"New adoption requests",
+        b"New return requests",
+        b"Verified",
+        b"Recent adoption requests",
+        b"Recent return requests",
+        b"Adoptions per month",
+        b"Needs a different home.",
+        b"Returned for care.",
+    ):
+        assert label in response.data
+    assert pets[0].name.encode() in response.data
+    assert pets[1].name.encode() in response.data
 
 
 def test_shelter_role_dashboard_redirect(client, app):
@@ -123,6 +186,10 @@ def test_shelter_settings_persist_notification_preferences(client, app):
     page = client.get("/shelter/settings")
     assert page.status_code == 200
     assert b"Notification preferences" in page.data
+    assert page.data.index(b"Adoption requests") < page.data.index(b"Return requests")
+    assert page.data.index(b"Return requests") < page.data.index(b"Smart reminders")
+    assert b"Appointments" not in page.data
+    assert b"Care reminders" not in page.data
     assert b"Two-factor authentication" in page.data
     assert b"User ID" in page.data
     assert b"SHL-00000001" in page.data
@@ -134,15 +201,16 @@ def test_shelter_settings_persist_notification_preferences(client, app):
         data={
             "section": "notifications",
             "adoption_updates": "on",
-            "appointment_updates": "on",
+            "return_requests": "on",
+            "smart_reminders": "on",
         },
     )
     shelter_user = db.session.scalar(
         db.select(User).filter_by(email="kavya@demo.petship")
     )
     assert shelter_user.prefs["adoption_updates"] is True
-    assert shelter_user.prefs["appointment_updates"] is True
-    assert shelter_user.prefs["health_reminders"] is False
+    assert shelter_user.prefs["return_requests"] is True
+    assert shelter_user.prefs["smart_reminders"] is True
 
 
 def test_shelter_can_delete_account_and_shelter_data(client, app):

@@ -103,6 +103,7 @@ def test_confirmation_page(client, app):
     assert resp.status_code == 200
     assert b"You're booked" in resp.data
     assert appt.reference.encode() in resp.data
+    assert b"Back to appointments" in resp.data
 
 
 def test_cannot_view_others_confirmation(client, app):

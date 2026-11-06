@@ -4,7 +4,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/lifestyle.css') }}">
 {% endblock %}
 {% block page_title %}Smart Reminder Centre{% endblock %}
-{% block page_subtitle %}Tasks, appointments, adoption follow-ups, and return visits in one place.{% endblock %}
+{% block page_subtitle %}Tasks, appointments, adoption applications, and return visits in one place.{% endblock %}
 {% block content %}
 <div class="row spread row-wrap mb-5">
   <nav class="row row-wrap" aria-label="Filter reminders by date">
@@ -21,7 +21,7 @@
 
 <section class="card mb-5" aria-live="polite">
   <h2 class="h3">{{ selected.label }}</h2>
-  <div class="grid grid-2">
+  <div class="grid {{ 'reminder-categories--shelter' if is_shelter else 'grid-2' }}">
     {% for category in category_names %}
       <div class="card">
         <h3 class="h4">{{ category }}</h3>

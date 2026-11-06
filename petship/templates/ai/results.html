@@ -11,7 +11,7 @@
     <h1 class="mb-0">Your top {{ matches|length }} matches</h1>
     <p class="text-muted">Based on your lifestyle, home, and experience.</p>
   </div>
-  <a class="btn btn-outline" href="{{ url_for('ai.quiz', step=1) }}">Retake quiz</a>
+  <a class="btn btn-outline" href="{{ url_for('ai.start_quiz') }}">&larr; Start a new AI match</a>
 </div>
 
 {% if matches %}
@@ -44,7 +44,7 @@
 {% else %}
 <div class="card mt-5 text-center">
   <p class="text-muted">We couldn't find matches yet. Take the quiz to get personalised matches.</p>
-  <a class="btn btn-primary" href="{{ url_for('ai.quiz', step=1) }}">Take the quiz</a>
+  <a class="btn btn-primary" href="{{ url_for('ai.start_quiz') }}">Start a new AI match</a>
 </div>
 {% endif %}
 {% endblock %}

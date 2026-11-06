@@ -4,6 +4,10 @@
 {% block page_title %}My applications{% endblock %}
 {% block page_subtitle %}Track every adoption you've applied for.{% endblock %}
 {% block content %}
+<div class="row spread mb-5">
+  <div></div>
+  <a class="btn btn-primary" href="{{ url_for('pets.browse') }}">Adopt a pet</a>
+</div>
 {% if applications %}
 <div class="stack">
   {% for app_row in applications %}

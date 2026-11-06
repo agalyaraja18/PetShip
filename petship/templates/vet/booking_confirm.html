@@ -23,9 +23,12 @@
   <p class="text-sm text-muted">Booking reference <strong>{{ appt.reference }}</strong></p>
 
   <div class="row row-wrap" style="justify-content: center;">
-    <a class="btn btn-primary" href="{{ url_for('adopter.appointments') }}">My appointments</a>
+    <a class="btn btn-primary" href="{{ url_for('adopter.appointments') }}">&larr; Back to appointments</a>
     <a class="btn btn-outline" href="{{ url_for('vet.directory') }}">Book another</a>
     <a class="btn btn-outline" href="{{ url_for('pets.home') }}">Done</a>
   </div>
 </div>
+<script>
+  sessionStorage.setItem('petship-vet-booking-completed', '1');
+</script>
 {% endblock %}

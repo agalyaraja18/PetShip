@@ -20,6 +20,7 @@
 
 /* Reminders + notifications (Task 24) */
 .reminders-layout { display: grid; grid-template-columns: 1.5fr 1fr; gap: var(--space-5); align-items: start; }
+.reminder-categories--shelter { grid-template-columns: 1fr; }
 .reminder-check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--color-border); background: #fff; color: var(--color-primary); cursor: pointer; font-size: 0.8rem; line-height: 1; }
 .reminder-check:hover { border-color: var(--color-primary); }
 .notif-item.is-unread { border-left: 3px solid var(--color-primary); }

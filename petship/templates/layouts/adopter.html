@@ -8,17 +8,12 @@
   <li><a href="{{ url_for('shelter.directory') }}" class="{{ 'is-active' if active_nav == 'shelters' }}">Find Shelter</a></li>
   <li><a href="{{ url_for('vet.directory') }}" class="{{ 'is-active' if active_nav == 'vets' }}">Find Vet</a></li>
   <li><a href="{{ url_for('adopter.appointments') }}" class="{{ 'is-active' if active_nav == 'appointments' }}">Appointments</a></li>
-  <li><a href="{{ url_for('adoption.my_applications') }}" class="{{ 'is-active' if active_nav == 'applications' }}">Applications</a></li>
-  <li><a href="{{ url_for('adopter.followups') }}" class="{{ 'is-active' if active_nav == 'followups' }}">Follow-ups</a></li>
-  <li><a href="{{ url_for('adopter.returns') }}" class="{{ 'is-active' if active_nav == 'returns' }}">Return Pet</a></li>
+  <li><a href="{{ url_for('adopter.adoptions') }}" class="{{ 'is-active' if active_nav == 'adoptions' }}">Adoptions</a></li>
   <li><a href="{{ url_for('favourites.index') }}" class="{{ 'is-active' if active_nav == 'favourites' }}">Favourites</a></li>
   <li><a href="{{ url_for('reminders.centre') }}" class="{{ 'is-active' if active_nav == 'reminders' }}">Smart Reminders</a></li>
   <li><a href="{{ url_for('lifestyle.expenses') }}" class="{{ 'is-active' if active_nav == 'expenses' }}">Expenses</a></li>
   <li><a href="{{ url_for('lifestyle.places') }}" class="{{ 'is-active' if active_nav == 'places' }}">Places</a></li>
-  <li><a href="{{ url_for('messages.inbox') }}" class="{{ 'is-active' if active_nav == 'messages' }}">Messages</a></li>
-  <li><a href="{{ url_for('ai.chat') }}" class="{{ 'is-active' if active_nav == 'aichat' }}">Pawly AI</a></li>
   <li><a href="{{ url_for('learning.paths') }}" class="{{ 'is-active' if active_nav == 'learning' }}">Learning</a></li>
-  <li><a href="{{ url_for('reminders.notifications') }}" class="{{ 'is-active' if active_nav == 'notifications' }}">Notifications</a></li>
   <li><a href="{{ url_for('profile.view') }}" class="{{ 'is-active' if active_nav == 'profile' }}">Profile</a></li>
   <li><a href="{{ url_for('profile.settings') }}" class="{{ 'is-active' if active_nav == 'settings' }}">Settings</a></li>
   <li><a href="{{ url_for('feedback.submit') }}">Feedback</a></li>

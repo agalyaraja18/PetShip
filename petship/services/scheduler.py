@@ -22,12 +22,17 @@ def run_due_reminders(app: Flask, now: datetime | None = None) -> int:
     """Notify users about elapsed reminders and appointments, then expire them."""
     from ..extensions import db
     from ..models.application import Application, ApplicationStage, ReturnStatus
-    from ..models.appointment import Appointment, AppointmentStatus
+    from ..models.appointment import Appointment, AppointmentKind, AppointmentStatus
     from ..models.reminder import Notification, Reminder
     from ..models.review import FollowUp, FollowUpStatus
+    from ..models.user import User
+    from ..models.health import OwnedPet
 
     created = 0
     with app.app_context():
+        def valid_user_id(user_id: int | None) -> bool:
+            return user_id is not None and db.session.get(User, user_id) is not None
+
         now_utc = now or datetime.now(timezone.utc)
         if now_utc.tzinfo is None:
             now_utc = now_utc.replace(tzinfo=timezone.utc)
@@ -46,6 +51,8 @@ def run_due_reminders(app: Flask, now: datetime | None = None) -> int:
         for r in due:
             due_at = datetime.combine(r.next_due, r.at_time or time.min)
             if due_at > now_local:
+                continue
+            if not valid_user_id(r.owner_id):
                 continue
             pet_name = r.pet.name if r.pet else "your pet"
             Notification.push(
@@ -95,6 +102,8 @@ def run_due_reminders(app: Flask, now: datetime | None = None) -> int:
                 if user_id is not None
             }
             for user_id in recipients:
+                if not valid_user_id(user_id):
+                    continue
                 exists = db.session.scalar(
                     db.select(Notification.id).filter_by(
                         user_id=user_id,
@@ -125,6 +134,8 @@ def run_due_reminders(app: Flask, now: datetime | None = None) -> int:
 
         def notify_on_day(user_id, title, body, category, link):
             nonlocal created
+            if not valid_user_id(user_id):
+                return
             exists = db.session.scalar(
                 db.select(Notification.id).filter_by(
                     user_id=user_id,
@@ -243,6 +254,68 @@ def run_due_reminders(app: Flask, now: datetime | None = None) -> int:
                 )
                 notify_on_day(user_id, title, body, "adoption", link)
 
+        adoption_applications = db.session.scalars(
+            db.select(Application).filter(
+                Application.stage.in_([
+                    ApplicationStage.AGREEMENT,
+                    ApplicationStage.COMPLETE,
+                ]),
+                Application.returned_at.is_(None),
+            )
+        ).all()
+        for application in adoption_applications:
+            pickup = db.session.scalar(
+                db.select(Appointment)
+                .filter_by(application_id=application.id, kind=AppointmentKind.PICKUP)
+                .filter(Appointment.status != AppointmentStatus.CANCELLED)
+                .order_by(Appointment.scheduled_for.desc())
+            )
+            if pickup is None:
+                if application.stage != ApplicationStage.COMPLETE or application.adopted_at is None:
+                    continue
+                scheduled_for = application.adopted_at
+                if scheduled_for.tzinfo is None:
+                    scheduled_for = scheduled_for.replace(tzinfo=timezone.utc)
+            else:
+                scheduled_for = pickup.scheduled_for
+                if scheduled_for.tzinfo is None:
+                    scheduled_for = scheduled_for.replace(tzinfo=timezone.utc)
+            if scheduled_for > now_utc:
+                continue
+            adoption_was_pending = application.stage == ApplicationStage.AGREEMENT
+            if application.stage != ApplicationStage.COMPLETE:
+                application.stage = ApplicationStage.COMPLETE
+            if application.adopted_at is None:
+                application.adopted_at = scheduled_for
+            application.pet.mark_adopted()
+            if pickup is not None:
+                pickup.status = AppointmentStatus.COMPLETED
+            if application.owned_pet is None:
+                listed_pet = application.pet
+                db.session.add(
+                    OwnedPet(
+                        owner_id=application.applicant_id,
+                        application_id=application.id,
+                        name=listed_pet.name,
+                        species=listed_pet.species.label if listed_pet.species else None,
+                        breed=listed_pet.breed,
+                        sex=listed_pet.sex.label if listed_pet.sex else None,
+                        weight_kg=listed_pet.weight_kg,
+                        photo_url=listed_pet.primary_photo,
+                        personality_tags=list(listed_pet.personality_tags or []),
+                        adopted_on=scheduled_for.date(),
+                    )
+                )
+            if adoption_was_pending:
+                from ..services.notify import notify
+                notify(
+                    application.applicant_id,
+                    title=f"Welcome home, {application.pet.name}!",
+                    body="Your adoption is complete and the pet has been added to My Pets.",
+                    category="adoption",
+                    link=f"/adopt/application/{application.id}",
+                )
+
         expired_appointments = db.session.scalars(
             db.select(Appointment).filter(
                 Appointment.status.in_(
@@ -253,6 +326,9 @@ def run_due_reminders(app: Flask, now: datetime | None = None) -> int:
             )
         ).all()
         for appointment in expired_appointments:
+            if not valid_user_id(appointment.user_id):
+                appointment.status = AppointmentStatus.COMPLETED
+                continue
             link = (
                 f"/adopt/application/{appointment.application_id}"
                 if appointment.application_id

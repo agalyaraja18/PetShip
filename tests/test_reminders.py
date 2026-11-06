@@ -51,27 +51,74 @@ def test_reminder_centre_renders(client, app):
         assert label in resp.data
     for category in (
         b"Vet appointments",
-        b"Follow ups",
         b"Today&#39;s tasks",
         b"Adoption applications",
         b"Return pets",
     ):
         assert category in resp.data
+    assert b"Follow ups" not in resp.data
     assert b'href="/lifestyle/reminders?period=all"' in resp.data
     assert b'aria-current="page"' in resp.data
     assert b"Create a task" in resp.data
     assert b"Save task" not in resp.data
 
 
+def test_adopter_reminder_centre_handles_active_adoption(client, app):
+    login_agalya(client)
+    user = agalya()
+    pet = db.session.scalar(db.select(Pet).limit(1))
+    db.session.add(Application(
+        reference="PS-REMINDER-TEST",
+        applicant_id=user.id,
+        pet_id=pet.id,
+        stage=ApplicationStage.REVIEW,
+    ))
+    db.session.commit()
+    response = client.get("/lifestyle/reminders")
+    assert response.status_code == 200
+    assert b"Adoption applications" in response.data
+
+
+def test_adoptions_page_has_adopt_a_pet_button(client, app):
+    login_agalya(client)
+    response = client.get("/me/adoptions")
+    assert response.status_code == 200
+    assert b"Adopt a pet" in response.data
+
+
 def test_shelter_reminder_centre_shows_shelter_categories(client, app):
+    from petship.models.shelter import Shelter
+
     seed_data()
+    shelter_user = db.session.scalar(
+        db.select(User).filter_by(email="kavya@demo.petship")
+    )
+    shelter = db.session.scalar(
+        db.select(Shelter).filter_by(owner_id=shelter_user.id)
+    )
+    pet = db.session.scalar(
+        db.select(Pet).filter(Pet.shelter_id == shelter.id)
+    )
+    return_visit = Application(
+        reference="PS-RETURN-REMINDER",
+        applicant_id=agalya().id,
+        pet_id=pet.id,
+        stage=ApplicationStage.COMPLETE,
+        return_status=ReturnStatus.RETURN_VISIT.value,
+        return_visit_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+    db.session.add(return_visit)
+    db.session.commit()
     client.post("/auth/login", data={"role": "shelter", "email": "kavya@demo.petship", "password": "password123"})
     resp = client.get("/lifestyle/reminders")
     assert resp.status_code == 200
     assert b"Home visits" in resp.data
-    assert b"Adoption applications" in resp.data
-    assert b"Follow ups" in resp.data
-    assert b"Return pets" in resp.data
+    assert b"Return visit" in resp.data
+    assert f"Return visit: {pet.name}".encode() in resp.data
+    assert b"reminder-categories--shelter" in resp.data
+    assert b'class="grid reminder-categories--shelter"' in resp.data
+    assert b"Adoption applications" not in resp.data
+    assert b"Return requests" not in resp.data
     assert b"Today&#39;s tasks" in resp.data
     assert b"Vet appointments" not in resp.data
     assert b"Create a task" in resp.data
@@ -455,6 +502,134 @@ def test_expired_appointment_notifies_and_leaves_upcoming_list(client, app):
         )
     ).all()
     assert len(notifications) == 1
+
+
+def test_past_welcome_home_auto_completes_adoption(client, app):
+    login_agalya(client)
+    user = agalya()
+    pet = db.session.scalar(db.select(Pet).limit(1))
+    welcome_home = datetime.now(timezone.utc) - timedelta(minutes=5)
+    application = Application(
+        reference="PS-WELCOME-TEST",
+        applicant_id=user.id,
+        pet_id=pet.id,
+        stage=ApplicationStage.AGREEMENT,
+    )
+    db.session.add(application)
+    db.session.flush()
+    pickup = Appointment(
+        kind=AppointmentKind.PICKUP,
+        status=AppointmentStatus.CONFIRMED,
+        scheduled_for=welcome_home,
+        application_id=application.id,
+        shelter_id=pet.shelter_id,
+        user_id=user.id,
+        pet_id=pet.id,
+    )
+    db.session.add(pickup)
+    db.session.commit()
+
+    run_due_reminders(app)
+    db.session.refresh(application)
+
+    assert application.stage is ApplicationStage.COMPLETE
+    assert application.adopted_at is not None
+    assert application.owned_pet is not None
+    assert application.owned_pet.owner_id == user.id
+    assert application.pet.status.value == "adopted"
+    assert b"My Pets" in client.get("/me/pets").data
+    assert application.pet.name.encode() in client.get("/me/adoptions").data
+
+
+def test_expired_reminder_is_removed_from_smart_reminders(client, app):
+    login_agalya(client)
+    user = agalya()
+    elapsed_at = datetime.now().astimezone() - timedelta(minutes=1)
+    reminder = Reminder(
+        owner_id=user.id,
+        title="Expired care task",
+        recurrence=Recurrence.ONCE,
+        next_due=elapsed_at.date(),
+        at_time=elapsed_at.time().replace(tzinfo=None),
+    )
+    db.session.add(reminder)
+    db.session.commit()
+
+    response = client.get("/lifestyle/reminders")
+
+    assert response.status_code == 200
+    assert b"Expired care task" not in response.data
+
+
+def test_expired_return_visit_is_removed_from_smart_reminders(client, app):
+    login_agalya(client)
+    user = agalya()
+    pet = db.session.scalar(db.select(Pet).limit(1))
+    application = Application(
+        reference="PS-RETURN-REMINDER",
+        applicant_id=user.id,
+        pet_id=pet.id,
+        stage=ApplicationStage.COMPLETE,
+        adopted_at=datetime.now(timezone.utc) - timedelta(days=10),
+        return_status=ReturnStatus.RETURN_VISIT.value,
+        return_visit_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+    )
+    db.session.add(application)
+    db.session.commit()
+
+    response = client.get("/lifestyle/reminders")
+
+    assert response.status_code == 200
+    assert b"Home collection" not in response.data
+
+
+def test_expired_appointment_is_removed_from_smart_reminders(client, app):
+    login_agalya(client)
+    user = agalya()
+    appointment = Appointment(
+        kind=AppointmentKind.VET_VISIT,
+        status=AppointmentStatus.CONFIRMED,
+        scheduled_for=datetime.now(timezone.utc) - timedelta(minutes=1),
+        user_id=user.id,
+        service="Expired appointment task",
+    )
+    db.session.add(appointment)
+    db.session.commit()
+
+    response = client.get("/lifestyle/reminders")
+
+    assert response.status_code == 200
+    assert b"Expired appointment task" not in response.data
+
+
+def test_expired_home_visit_is_removed_from_shelter_reminders(client, app):
+    seed_data()
+    user = agalya()
+    pet = db.session.scalar(db.select(Pet).limit(1))
+    appointment = Appointment(
+        kind=AppointmentKind.HOME_VISIT,
+        status=AppointmentStatus.CONFIRMED,
+        scheduled_for=datetime.now(timezone.utc) - timedelta(minutes=1),
+        shelter_id=pet.shelter_id,
+        user_id=user.id,
+        pet_id=pet.id,
+        location="Expired home visit location",
+    )
+    db.session.add(appointment)
+    db.session.commit()
+    client.post(
+        "/auth/login",
+        data={
+            "role": "shelter",
+            "email": "kavya@demo.petship",
+            "password": "password123",
+        },
+    )
+
+    response = client.get("/lifestyle/reminders")
+
+    assert response.status_code == 200
+    assert b"Expired home visit location" not in response.data
 
 
 # ---- Notifications centre ----

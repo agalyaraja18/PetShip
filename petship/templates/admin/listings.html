@@ -5,10 +5,21 @@
 {% block page_subtitle %}{{ counts.all }} listings{% endblock %}
 {% block content %}
 <div class="row row-wrap mb-4">
-  {% for key, label in [('all','All'),('available','Available'),('draft','Drafts'),('removed','Removed')] %}
-    <a class="pill {{ 'is-active' if status == key }}" href="{{ url_for('admin_mod.listings', status=key) }}">{{ label }} ({{ counts[key] }})</a>
+  {% for key, label in [('all','All'),('available','Available'),('draft','Draft'),('removed','Removed'),('adopted','Adopted'),('returned','Returned')] %}
+    <a class="pill {{ 'is-active' if status == key }}" href="{{ url_for('admin_mod.listings', status=key, species=species) }}">{{ label }} ({{ counts[key] }})</a>
   {% endfor %}
 </div>
+<form method="get" class="row row-wrap mb-4">
+  <input type="hidden" name="status" value="{{ status }}">
+  <label for="species-filter" class="text-sm fw-600">Species</label>
+  <select id="species-filter" name="species" class="input" style="max-width: 220px;">
+    <option value="all" {{ 'selected' if species == 'all' }}>All species</option>
+    {% for item, label in species_options %}
+      <option value="{{ item.value }}" {{ 'selected' if species == item.value }}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-outline btn-sm" type="submit">Filter</button>
+</form>
 <div class="grid grid-4">
   {% for pet in pets %}
     <div class="card">
@@ -20,7 +31,7 @@
       <div class="mt-4">
         <div class="fw-600">{{ pet.name }}</div>
         <div class="text-sm text-muted">{{ pet.shelter.name }} · #{{ pet.id }}</div>
-        {{ badge(pet.status.label, pet.status.badge_variant) }}
+        {{ badge('Returned' if pet.id in returned_pet_ids else pet.status.label, 'warning' if pet.id in returned_pet_ids else pet.status.badge_variant) }}
       </div>
       <form method="post" action="{{ url_for('admin_mod.listing_action', pet_id=pet.id) }}" class="row mt-4">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

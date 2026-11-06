@@ -20,7 +20,6 @@ from ..models.application import Application, ApplicationStage, ReturnStatus
 from ..models.appointment import Appointment, AppointmentKind, AppointmentStatus
 from ..models.health import OwnedPet
 from ..models.reminder import Notification, Recurrence, Reminder
-from ..models.review import FollowUp, FollowUpStatus
 from ..models.user import UserRole
 
 reminders_bp = Blueprint("reminders", __name__, url_prefix="/lifestyle")
@@ -54,15 +53,31 @@ def centre():
         selected_period = "all"
     is_shelter = current_user.role == UserRole.SHELTER
     category_names = (
-        ["Today's tasks", "Home visits", "Follow ups", "Adoption applications", "Return pets"]
+        ["Today's tasks", "Home visits", "Return visit"]
         if is_shelter
-        else ["Vet appointments", "Follow ups", "Today's tasks", "Adoption applications", "Return pets"]
+        else ["Vet appointments", "Today's tasks", "Adoption applications", "Return pets"]
     )
     events = []
 
-    def add_event(category, title, detail, due_at, href, reminder_id=None):
+    def add_event(
+        category,
+        title,
+        detail,
+        due_at,
+        href,
+        reminder_id=None,
+        expires_at_due=False,
+    ):
+        if category not in category_names:
+            category = "Today's tasks" if not is_shelter else "Today's tasks"
+        if due_at is None:
+            due_at = datetime.now(timezone.utc)
         if due_at.tzinfo is None:
             due_at = due_at.replace(tzinfo=timezone.utc)
+        else:
+            due_at = due_at.astimezone(timezone.utc)
+        if expires_at_due and due_at <= now:
+            return
         events.append({
             "category": category,
             "title": title,
@@ -79,6 +94,8 @@ def centre():
         due_at = datetime.combine(
             reminder.next_due, reminder.at_time or dt_time.min
         ).astimezone()
+        if due_at <= now:
+            continue
         pet_name = reminder.pet.name if reminder.pet else None
         add_event(
             "Today's tasks",
@@ -91,10 +108,12 @@ def centre():
             due_at,
             url_for("reminders.centre"),
             reminder.id,
+            expires_at_due=True,
         )
 
     appointments_query = db.select(Appointment).filter(
         Appointment.status.in_([AppointmentStatus.CONFIRMED, AppointmentStatus.PENDING]),
+        Appointment.scheduled_for > now,
     )
     if is_shelter:
         from .shelter import current_shelter
@@ -131,63 +150,84 @@ def centre():
             + (f" · {appointment.location}" if appointment.location else ""),
             appointment.scheduled_for,
             href,
+            expires_at_due=True,
         )
 
-    followup_query = (
-        db.select(FollowUp)
-        .join(Application, FollowUp.application_id == Application.id)
-        .filter(
-            FollowUp.status == FollowUpStatus.DUE,
-            Application.stage == ApplicationStage.COMPLETE,
-            Application.returned_at.is_(None),
-        )
-    )
     if is_shelter:
         from .shelter import current_shelter
 
         shelter = current_shelter()
         if shelter:
-            followup_query = followup_query.filter(Application.pet.has(shelter_id=shelter.id))
-        else:
-            followup_query = followup_query.filter(Application.id == -1)
+            shelter_pet_ids = [pet.id for pet in shelter.pets]
+            if shelter_pet_ids:
+                return_visits = db.session.scalars(
+                    db.select(Application)
+                    .filter(
+                        Application.pet_id.in_(shelter_pet_ids),
+                        Application.return_status == ReturnStatus.RETURN_VISIT.value,
+                        Application.return_visit_at.is_not(None),
+                        Application.return_visit_at > now,
+                        Application.returned_at.is_(None),
+                    )
+                    .order_by(Application.return_visit_at.asc())
+                ).all()
+                for application in return_visits:
+                    add_event(
+                        "Return visit",
+                        f"Return visit: {application.pet.name}",
+                        f"Adopter: {application.applicant.full_name}",
+                        application.return_visit_at,
+                        url_for("shelter_ops.returns", status=ReturnStatus.RETURN_VISIT.value),
+                        expires_at_due=True,
+                    )
     else:
-        followup_query = followup_query.filter(Application.applicant_id == current_user.id)
-    followups = db.session.scalars(followup_query.order_by(FollowUp.due_on.asc())).all()
-    for followup in followups:
-        add_event(
-            "Follow ups",
-            f"{followup.milestone} check-in: {followup.application.pet.name}",
-            f"{followup.application.applicant.full_name} · {followup.due_on.strftime('%d %b %Y at %I:%M %p')}"
-            if is_shelter else followup.due_on.strftime("%d %b %Y at %I:%M %p"),
-            followup.due_on,
-            url_for("shelter_ops.followups") if is_shelter else url_for("adopter.followups"),
-        )
+        active_applications = db.session.scalars(
+            db.select(Application)
+            .filter(
+                Application.applicant_id == current_user.id,
+                Application.stage.notin_([
+                    ApplicationStage.DRAFT,
+                    ApplicationStage.COMPLETE,
+                    ApplicationStage.DECLINED,
+                    ApplicationStage.AGREEMENT,
+                ]),
+            )
+            .order_by(Application.updated_at.desc())
+        ).all()
+        seen_application_pet_ids = set()
+        for application in active_applications:
+            if application.pet_id in seen_application_pet_ids:
+                continue
+            seen_application_pet_ids.add(application.pet_id)
+            due_at = application.updated_at or application.created_at
+            add_event(
+                "Adoption applications",
+                f"{application.pet.name}: {application.stage.label}",
+                f"Application {application.reference}",
+                due_at,
+                url_for("adoption.track", app_id=application.id),
+            )
 
-    return_query = db.select(Application).filter(
-        Application.return_status == ReturnStatus.RETURN_VISIT.value,
-        Application.return_visit_at.is_not(None),
-        Application.returned_at.is_(None),
-    )
-    if is_shelter:
-        from .shelter import current_shelter
-
-        shelter = current_shelter()
-        return_query = return_query.filter(
-            Application.pet.has(shelter_id=shelter.id if shelter else -1)
+    if not is_shelter:
+        return_query = db.select(Application).filter(
+            Application.return_status == ReturnStatus.RETURN_VISIT.value,
+            Application.return_visit_at.is_not(None),
+            Application.return_visit_at > now,
+            Application.returned_at.is_(None),
         )
-    else:
         return_query = return_query.filter(Application.applicant_id == current_user.id)
-    return_visits = db.session.scalars(
-        return_query.order_by(Application.return_visit_at.asc())
-    ).all()
-    for application in return_visits:
-        add_event(
-            "Return pets",
-            f"Home collection: {application.pet.name}",
-            f"{application.applicant.full_name} · " if is_shelter else "",
-            application.return_visit_at,
-            url_for("shelter_ops.returns") if is_shelter else url_for("adopter.returns"),
-        )
+        return_visits = db.session.scalars(
+            return_query.order_by(Application.return_visit_at.asc())
+        ).all()
+        for application in return_visits:
+            add_event(
+                "Return pets",
+                f"Home collection: {application.pet.name}",
+                "",
+                application.return_visit_at,
+                url_for("adopter.returns"),
+                expires_at_due=True,
+            )
 
     matches_period = {
         "all": lambda due: True,
@@ -267,11 +307,19 @@ def add():
     except ValueError:
         flash("Choose a valid reminder repeat interval.", "warning")
         return redirect(url_for("reminders.centre"))
+    title = (request.form.get("title") or "").strip()
+    if not title:
+        flash("Enter a task title.", "warning")
+        return redirect(url_for("reminders.new_reminder"))
     pet_id = request.form.get("pet_id", type=int)
+    if pet_id:
+        pet = db.session.get(OwnedPet, pet_id)
+        if pet is None or pet.owner_id != current_user.id:
+            abort(404)
     reminder = Reminder(
         owner_id=current_user.id,
         pet_id=pet_id or None,
-        title=(request.form.get("title") or "Reminder").strip(),
+        title=title,
         category=request.form.get("category", "care"),
         recurrence=recurrence,
         at_time=at_time,

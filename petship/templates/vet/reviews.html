@@ -1,0 +1,39 @@
+{% extends 'layouts/vet.html' %}
+{% from 'partials/macros.html' import stat_card %}
+{% block title %}Ratings &amp; Reviews · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Ratings &amp; Reviews{% endblock %}
+{% block page_subtitle %}Feedback from adopters about your clinic.{% endblock %}
+{% block content %}
+<div class="grid grid-2 mb-5">
+  {{ stat_card('Average rating', '★ ' ~ average_rating) }}
+  {{ stat_card('Total reviews', total_reviews) }}
+</div>
+
+<div class="stack">
+  {% for review in reviews %}
+    <article class="card">
+      <div class="row spread">
+        <div class="row" style="gap: var(--space-3);">
+          <div class="avatar avatar-md profile-initials">{{ review.author.initials }}</div>
+          <div>
+            <div class="fw-600">{{ review.author.full_name }}</div>
+            <div class="text-sm text-muted">{{ review.created_at.strftime('%d %b %Y') }}</div>
+          </div>
+        </div>
+        <div class="text-primary" aria-label="{{ review.rating }} out of 5 stars">
+          {{ '★' * review.rating }}{{ '☆' * (5 - review.rating) }}
+        </div>
+      </div>
+      {% if review.body %}
+        <p class="mt-4 mb-0">{{ review.body }}</p>
+      {% else %}
+        <p class="text-sm text-muted mt-4 mb-0">No written feedback was provided.</p>
+      {% endif %}
+    </article>
+  {% else %}
+    <div class="card">
+      <p class="text-muted mb-0">You have no adopter reviews yet.</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

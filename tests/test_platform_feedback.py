@@ -25,6 +25,7 @@ def test_user_can_submit_named_star_feedback(client, app):
         follow_redirects=True,
     )
     assert response.status_code == 200
+    assert response.request.path == "/"
     assert b"Thank you for sharing your feedback." in response.data
     feedback = db.session.scalar(db.select(PlatformFeedback))
     assert feedback is not None
@@ -49,6 +50,7 @@ def test_public_feedback_is_available_from_footer_and_accepts_guest(client, app)
         follow_redirects=True,
     )
     assert response.status_code == 200
+    assert response.request.path == "/"
     assert b"Thank you for sharing your feedback." in response.data
     feedback = db.session.scalar(db.select(PlatformFeedback))
     assert feedback is not None

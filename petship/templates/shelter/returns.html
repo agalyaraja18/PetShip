@@ -1,92 +1,108 @@
 {% extends 'layouts/shelter.html' %}
 {% from 'partials/macros.html' import badge %}
-{% block title %}Return Pets · {{ APP_NAME }}{% endblock %}
-{% block page_title %}Return Pets{% endblock %}
+{% block title %}Return Requests · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Return Requests{% endblock %}
 {% block page_subtitle %}Review requests, arrange home collection visits, and track returned pets.{% endblock %}
 {% block content %}
-{% set return_stages = [ReturnStatus.SUBMITTED, ReturnStatus.SHELTER_REVIEW, ReturnStatus.SHELTER_CONFIRMED, ReturnStatus.RETURN_VISIT, ReturnStatus.RETURNED_SHELTER] %}
 <nav class="row row-wrap mb-4" aria-label="Filter return requests">
   {% for key, label in status_options %}
     <a class="pill {{ 'is-active' if status == key }}"
        href="{{ url_for('shelter_ops.returns', status=key) }}"
-       {% if status == key %}aria-current="page"{% endif %}>{{ label }}</a>
+       {% if status == key %}aria-current="page"{% endif %}>{{ label }} <span class="text-muted">({{ status_counts[key] }})</span></a>
   {% endfor %}
 </nav>
 <div class="card">
   <h2 class="h3">Return requests and collection visits</h2>
-  {% for application in return_requests %}
-    <article class="toggle-row">
-      <div class="row spread row-wrap">
-        <div class="fw-600">{{ application.pet.name }} · {{ application.applicant.full_name }}</div>
-        {{ badge(ReturnStatus(application.return_status).label, 'warning') }}
-      </div>
-      <p class="text-sm text-muted mb-0">{{ application.return_reason }}</p>
-      {% set return_index = return_stages.index(ReturnStatus(application.return_status)) %}
-      <ol class="mini-timeline mt-4">
-        {% for status in return_stages %}
-          <li class="{{ 'is-done' if loop.index0 < return_index }} {{ 'is-current' if loop.index0 == return_index }}">{{ status.label }}</li>
-        {% endfor %}
-      </ol>
-      {% if application.return_status == ReturnStatus.SUBMITTED.value %}
-        <form method="post" action="{{ url_for('shelter_ops.return_action', app_id=application.id) }}" class="mt-4">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="action" value="review">
-          <button class="btn btn-primary btn-sm" type="submit">Begin shelter review</button>
-        </form>
-      {% elif application.return_status == ReturnStatus.SHELTER_REVIEW.value %}
-        <form method="post" action="{{ url_for('shelter_ops.return_action', app_id=application.id) }}" class="mt-4">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="action" value="confirm">
-          <button class="btn btn-primary btn-sm" type="submit">Confirm return</button>
-        </form>
-      {% elif application.return_status == ReturnStatus.SHELTER_CONFIRMED.value %}
-        <form method="post" action="{{ url_for('shelter_ops.return_action', app_id=application.id) }}" class="mt-4">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="action" value="schedule">
-          <label for="return-visit-{{ application.id }}">Schedule home collection date and time</label>
-          <input id="return-visit-{{ application.id }}" type="datetime-local" name="scheduled_for" required>
-          <button class="btn btn-primary btn-sm mt-4" type="submit">Schedule return visit</button>
-        </form>
-      {% elif application.return_status == ReturnStatus.RETURN_VISIT.value %}
-        <p class="text-sm text-muted">
-          Home collection scheduled for {{ application.return_visit_at.strftime('%d %b %Y at %I:%M %p UTC') if application.return_visit_at else 'time not set' }}.
-        </p>
-        <form method="post" action="{{ url_for('shelter_ops.return_action', app_id=application.id) }}" class="mt-4">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="action" value="schedule">
-          <label for="return-visit-{{ application.id }}">Change home collection date and time</label>
-          <input id="return-visit-{{ application.id }}" type="datetime-local" name="scheduled_for" required>
-          <button class="btn btn-outline btn-sm mt-4" type="submit">Reschedule return visit</button>
-        </form>
-        <form method="post" action="{{ url_for('shelter_ops.return_action', app_id=application.id) }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="action" value="complete">
-          <button class="btn btn-outline btn-sm" type="submit">Confirm pet collected</button>
-        </form>
-      {% endif %}
-    </article>
+  {% if status == ReturnStatus.RETURNED_SHELTER.value %}
+    {% for application in returned_applications %}
+      <article class="toggle-row">
+        <div class="row spread row-wrap">
+          <div class="fw-600">{{ application.pet.name }} · {{ application.applicant.full_name }}</div>
+          {{ badge(ReturnStatus.RETURNED_SHELTER.label, 'danger') }}
+        </div>
+        <div class="text-sm text-muted">
+          {{ application.returned_at.strftime('%d %b %Y at %I:%M %p UTC') }}
+          {% if application.return_reason %} · {{ application.return_reason }}{% endif %}
+        </div>
+      </article>
+    {% else %}
+      <p class="text-muted mb-0">No pets have been returned to the shelter.</p>
+    {% endfor %}
   {% else %}
-    <p class="text-muted mb-0">No return requests in this view.</p>
-  {% endfor %}
+    {% for application in return_requests %}
+      <article class="toggle-row">
+        <div class="row spread row-wrap">
+          <div class="fw-600">{{ application.pet.name }} · {{ application.applicant.full_name }}</div>
+          {{ badge(ReturnStatus(application.return_status).label, 'warning') }}
+        </div>
+        <p class="text-sm text-muted mb-0">{{ application.return_reason }}</p>
+        {% if application.return_status == ReturnStatus.SUBMITTED.value %}
+          <form method="post" action="{{ url_for('shelter_ops.return_action', app_id=application.id) }}" class="mt-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="review">
+            <button class="btn btn-primary btn-sm" type="submit">Begin shelter review</button>
+          </form>
+        {% elif application.return_status == ReturnStatus.SHELTER_REVIEW.value %}
+          <form method="post" action="{{ url_for('shelter_ops.return_action', app_id=application.id) }}" class="mt-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="confirm">
+            <button class="btn btn-primary btn-sm" type="submit">Confirm return</button>
+          </form>
+        {% elif application.return_status == ReturnStatus.SHELTER_CONFIRMED.value %}
+          <form method="post" action="{{ url_for('shelter_ops.return_action', app_id=application.id) }}" class="mt-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="schedule">
+            <label for="return-visit-{{ application.id }}">Schedule home collection date and time</label>
+            <input id="return-visit-{{ application.id }}" type="datetime-local" name="scheduled_for" required>
+            <button class="btn btn-primary btn-sm mt-4" type="submit">Schedule return visit</button>
+          </form>
+        {% elif application.return_status == ReturnStatus.RETURN_VISIT.value %}
+          <p class="text-sm text-muted">
+            Home collection scheduled for
+            {% if application.return_visit_at %}
+              {% set visit_at_iso = application.return_visit_at.isoformat() %}
+              {% if application.return_visit_timezone or application.return_visit_at.tzinfo is not none %}
+                {% if application.return_visit_at.tzinfo is none %}{% set visit_at_iso = visit_at_iso ~ 'Z' %}{% endif %}
+                <time class="js-return-visit-time" datetime="{{ visit_at_iso }}">{{ application.return_visit_at.strftime('%d %b %Y at %I:%M %p UTC') }}</time>
+              {% else %}
+                <time class="js-return-visit-time" datetime="{{ visit_at_iso }}">{{ application.return_visit_at.strftime('%d %b %Y at %I:%M %p') }}</time>
+              {% endif %}.
+            {% else %}time not set.{% endif %}
+          </p>
+          <form method="post" action="{{ url_for('shelter_ops.return_action', app_id=application.id) }}" class="mt-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="schedule">
+            <input type="hidden" name="browser_timezone" class="browser-timezone">
+            <label for="return-visit-{{ application.id }}">Change home collection date and time</label>
+            <input id="return-visit-{{ application.id }}" type="datetime-local" name="scheduled_for" required>
+            <button class="btn btn-outline btn-sm mt-4" type="submit">Reschedule return visit</button>
+          </form>
+          <form method="post" action="{{ url_for('shelter_ops.return_action', app_id=application.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="complete">
+            <input type="hidden" name="browser_timezone" class="browser-timezone">
+            <button class="btn btn-outline btn-sm" type="submit">Complete Return</button>
+          </form>
+        {% endif %}
+      </article>
+    {% else %}
+      <p class="text-muted mb-0">No return requests in this view.</p>
+    {% endfor %}
+  {% endif %}
 </div>
-
-{% if status in ['all', ReturnStatus.RETURNED_SHELTER.value] %}
-<div class="card mt-5">
-  <h2 class="h3">Returned pets</h2>
-  {% for application in returned_applications %}
-    <article class="toggle-row">
-      <div class="row spread row-wrap">
-        <div class="fw-600">{{ application.pet.name }} · {{ application.applicant.full_name }}</div>
-        {{ badge(ReturnStatus.RETURNED_SHELTER.label, 'danger') }}
-      </div>
-      <div class="text-sm text-muted">
-        {{ application.returned_at.strftime('%d %b %Y at %I:%M %p UTC') }}
-        {% if application.return_reason %} · {{ application.return_reason }}{% endif %}
-      </div>
-    </article>
-  {% else %}
-    <p class="text-muted mb-0">No pets have been returned to the shelter.</p>
-  {% endfor %}
-</div>
-{% endif %}
+<script>
+  var browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  document.querySelectorAll('.browser-timezone').forEach(function (input) {
+    input.value = browserTimezone;
+  });
+  document.querySelectorAll('.js-return-visit-time').forEach(function (element) {
+    var visitAt = new Date(element.dateTime);
+    if (!Number.isNaN(visitAt.getTime())) {
+      element.textContent = new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      }).format(visitAt);
+    }
+  });
+</script>
 {% endblock %}

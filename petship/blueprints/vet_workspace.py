@@ -23,7 +23,8 @@ from ..models.health import (
     VetPatient,
 )
 from ..models.pet import Pet
-from ..models.reminder import Notification, Reminder
+from ..models.reminder import Notification
+from ..models.review import Review, ReviewTarget
 from ..models.user import User, UserRole
 from ..security import role_required
 from ..services.storage import save_image
@@ -76,36 +77,79 @@ def current_user_id():
 def dashboard():
     appts = _my_appointments()
     now = datetime.now(timezone.utc)
-    today = now.date()
+    today = date.today()
+    active_appointments = [
+        appointment
+        for appointment in appts
+        if appointment.status != AppointmentStatus.CANCELLED
+    ]
+    todays = [
+        appointment
+        for appointment in active_appointments
+        if _aware(appointment.scheduled_for).astimezone().date() == today
+    ]
+    patients = db.session.scalar(
+        db.select(db.func.count())
+        .select_from(VetPatient)
+        .filter_by(vet_id=current_user.id)
+    ) or 0
 
-    # Show today's appointments if any; otherwise show upcoming ones so a newly
-    # booked (future) appointment is immediately visible on the dashboard.
-    todays = [a for a in appts if _aware(a.scheduled_for).date() == today]
-    upcoming = [a for a in appts if _aware(a.scheduled_for).date() > today]
-    schedule = todays if todays else upcoming[:8]
-    schedule_label = "Today's schedule" if todays else "Upcoming appointments"
+    current_month = today.replace(day=1)
+    months = []
+    for offset in range(5, -1, -1):
+        month_number = current_month.month - offset
+        year = current_month.year + (month_number - 1) // 12
+        month_number = (month_number - 1) % 12 + 1
+        months.append(date(year, month_number, 1))
+    month_counts = {(month.year, month.month): 0 for month in months}
+    for appointment in active_appointments:
+        scheduled_on = _aware(appointment.scheduled_for).astimezone().date()
+        month_key = (scheduled_on.year, scheduled_on.month)
+        if month_key in month_counts:
+            month_counts[month_key] += 1
 
-    week_count = sum(
-        1 for a in appts
-        if today <= _aware(a.scheduled_for).date() <= today + timedelta(days=7)
-    )
-    patients = len({a.pet_id or a.note for a in appts if (a.pet_id or a.note)})
-
-    needs_attention = [
-        a for a in appts
-        if a.status == AppointmentStatus.CONFIRMED and _aware(a.scheduled_for) >= now
-    ][:3]
+    profile = current_user.vet_profile[0] if current_user.vet_profile else None
 
     return render_template(
         "vet/dashboard.html",
-        todays=schedule,
-        schedule_label=schedule_label,
-        week_count=week_count,
+        todays=todays,
+        appointment_count=len(active_appointments),
         patients=patients,
-        needs_attention=needs_attention,
-        pet_labels=_appointment_pet_labels(schedule + needs_attention),
+        is_verified=profile.is_verified if profile else False,
+        month_labels=[month.strftime("%b") for month in months],
+        month_values=[month_counts[(month.year, month.month)] for month in months],
+        pet_labels=_appointment_pet_labels(todays),
         now=now,
         active_nav="dashboard",
+    )
+
+
+@vet_workspace_bp.route("/reviews")
+@role_required(UserRole.VET)
+def reviews():
+    profile = current_user.vet_profile[0] if current_user.vet_profile else None
+    items = []
+    if profile is not None:
+        items = db.session.scalars(
+            db.select(Review)
+            .filter_by(
+                target_type=ReviewTarget.VET,
+                target_id=profile.id,
+                hidden=False,
+            )
+            .order_by(Review.created_at.desc())
+        ).all()
+    average_rating = (
+        round(sum(review.rating for review in items) / len(items), 1)
+        if items else 0
+    )
+    return render_template(
+        "vet/reviews.html",
+        reviews=items,
+        average_rating=average_rating,
+        total_reviews=len(items),
+        clinic_name=(profile.clinic_name if profile else None) or "Vet account",
+        active_nav="reviews",
     )
 
 
@@ -115,7 +159,7 @@ def settings():
     if request.method == "POST":
         if request.form.get("section") == "notifications":
             prefs = dict(current_user.prefs)
-            for key in ("health_reminders", "vet_appointments", "messages"):
+            for key in ("health_reminders", "vet_appointments"):
                 prefs[key] = request.form.get(key) == "on"
             current_user.notification_prefs = prefs
             db.session.commit()
@@ -135,65 +179,6 @@ def settings():
         active_prefs=current_user.prefs,
         active_nav="settings",
     )
-
-
-@vet_workspace_bp.route("/notifications")
-@role_required(UserRole.VET)
-def notifications():
-    category_options = [
-        ("all", "All"),
-        ("adoption", "Adoption"),
-        ("health", "Health"),
-        ("appointments", "Appointments"),
-        ("messages", "Messages"),
-        ("general", "Other"),
-    ]
-    category = request.args.get("category", "all")
-    if category not in {key for key, _ in category_options}:
-        category = "all"
-    known_categories = {key for key, _ in category_options if key != "all"}
-    query = db.select(Notification).filter_by(user_id=current_user.id)
-    if category != "all":
-        query = query.filter_by(category=category)
-    items = db.session.scalars(
-        query.order_by(Notification.created_at.desc()).limit(100)
-    ).all()
-    groups = [
-        (
-            key,
-            label,
-            [
-                item for item in items
-                if item.category == key
-                or (key == "general" and item.category not in known_categories)
-            ],
-        )
-        for key, label in category_options
-        if key != "all"
-        and any(
-            item.category == key
-            or (key == "general" and item.category not in known_categories)
-            for item in items
-        )
-    ]
-    return render_template(
-        "vet/notifications.html",
-        notifications=items,
-        notification_groups=groups,
-        category_options=category_options,
-        category=category,
-        active_nav="notifications",
-    )
-
-
-@vet_workspace_bp.route("/notifications/read-all", methods=["POST"])
-@role_required(UserRole.VET)
-def read_all_notifications():
-    db.session.query(Notification).filter_by(
-        user_id=current_user.id, read=False
-    ).update({"read": True})
-    db.session.commit()
-    return redirect(url_for("vet_workspace.notifications"))
 
 
 @vet_workspace_bp.route("/appointments")
@@ -431,16 +416,6 @@ def patient_health_record(pet_id: int):
         .order_by(Vaccination.due_on.asc().nullslast())
     ).all()
     vaccinations = _unique_vaccinations(vaccinations)
-    reminders = db.session.scalars(
-        db.select(Reminder)
-        .filter(
-            Reminder.pet_id == pet.id,
-            Reminder.owner_id == pet.owner_id,
-            Reminder.done.is_(False),
-            Reminder.next_due >= today,
-        )
-        .order_by(Reminder.next_due.asc(), Reminder.at_time.asc().nullslast())
-    ).all()
     current_plans = db.session.scalars(
         db.select(HealthPlan)
         .filter(
@@ -468,11 +443,9 @@ def patient_health_record(pet_id: int):
         )
         .order_by(HealthPlan.next_visit_on.asc().nullslast())
     ).all()
-    today_reminders = [reminder for reminder in reminders if reminder.next_due == today]
-    upcoming_reminders = [reminder for reminder in reminders if reminder.next_due > today]
-    past_prescriptions = [
+    prescription_records = [
         record for record in records
-        if record.record_type == RecordType.PRESCRIPTION and record.record_date < today
+        if record.record_type == RecordType.PRESCRIPTION
         and not record.title.strip().casefold().startswith("consultation")
     ]
     past_records = [record for record in records if record.record_date <= today]
@@ -480,35 +453,47 @@ def patient_health_record(pet_id: int):
         record for record in past_records
         if record.record_type not in {RecordType.PRESCRIPTION, RecordType.LAB, RecordType.SURGERY}
     ]
-    past_prescription_plans = [
-        plan for plan in db.session.scalars(
+    prescription_plans = [
+        plan
+        for plan in db.session.scalars(
             db.select(HealthPlan)
             .filter(
                 HealthPlan.pet_id == pet.id,
                 HealthPlan.prescribed_medicines.is_not(None),
-                HealthPlan.prescription_end_on.is_not(None),
-                HealthPlan.prescription_end_on < today,
-            )
-            .order_by(HealthPlan.prescription_end_on.desc())
-        ).all()
-    ]
-    present_prescription_plans = [
-        plan for plan in db.session.scalars(
-            db.select(HealthPlan)
-            .filter(
-                HealthPlan.pet_id == pet.id,
-                HealthPlan.prescribed_medicines.is_not(None),
-                db.or_(
-                    HealthPlan.prescription_end_on.is_(None),
-                    HealthPlan.prescription_end_on >= today,
-                ),
             )
             .order_by(HealthPlan.prescription_start_on.desc(), HealthPlan.id.desc())
         ).all()
+        if plan.prescribed_medicines.strip().casefold()
+        not in {"", "none", "no medicines", "nil"}
     ]
-    present_prescription_records = [
-        record for record in records
-        if record.record_type == RecordType.PRESCRIPTION and record.record_date >= today
+    past_prescription_plans = [
+        plan for plan in prescription_plans
+        if plan.prescription_end_on is not None
+        and plan.prescription_end_on < today
+    ]
+    present_prescription_plans = [
+        plan for plan in prescription_plans
+        if plan.prescription_end_on is None or plan.prescription_end_on >= today
+    ]
+    plan_record_keys = {
+        (
+            plan.title.strip().casefold(),
+            (plan.prescription_start_on or plan.created_at.date()).isoformat(),
+        )
+        for plan in prescription_plans
+    }
+    unmatched_prescription_records = [
+        record for record in prescription_records
+        if (record.title.strip().casefold(), record.record_date.isoformat())
+        not in plan_record_keys
+    ]
+    past_prescriptions = [
+        record for record in unmatched_prescription_records
+        if record.record_date < today
+    ]
+    present_prescriptions = [
+        record for record in unmatched_prescription_records
+        if record.record_date >= today
     ]
     upcoming_appointments = db.session.scalars(
         db.select(Appointment)
@@ -530,8 +515,6 @@ def patient_health_record(pet_id: int):
         pet=pet,
         records=records,
         vaccinations=vaccinations,
-        today_reminders=today_reminders,
-        upcoming_reminders=upcoming_reminders,
         today_plans=today_plans,
         current_plans=current_plans,
         plans=plans,
@@ -540,7 +523,7 @@ def patient_health_record(pet_id: int):
         past_health_records=past_health_records,
         past_prescription_plans=past_prescription_plans,
         present_prescription_plans=present_prescription_plans,
-        present_prescription_records=present_prescription_records,
+        present_prescriptions=present_prescriptions,
         upcoming_appointments=upcoming_appointments,
         RecordType=RecordType,
         today=today,
@@ -851,9 +834,18 @@ def add_health_plan(pet_id: int):
 def add_today_health_record(pet_id: int):
     pet = _linked_patient_or_404(pet_id)
     visit_type = (request.form.get("visit_type") or "").strip() or "General check-up"
+    allowed_visit_types = {
+        "General check-up",
+        "Dental care",
+        "Lab test",
+        "Referral",
+    }
     findings = (request.form.get("findings") or "").strip()
     diagnosis = (request.form.get("diagnosis") or "").strip() or None
     suggestions = (request.form.get("suggestions") or "").strip() or None
+    if visit_type not in allowed_visit_types:
+        flash("Choose a valid health record visit type.", "warning")
+        return redirect(url_for("vet_workspace.patient_health_record", pet_id=pet.id))
     if not findings:
         flash("Enter general check-up details or instructions.", "warning")
         return redirect(url_for("vet_workspace.patient_health_record", pet_id=pet.id))
@@ -884,12 +876,76 @@ def add_today_health_record(pet_id: int):
 
 
 @vet_workspace_bp.route(
+    "/patients/<int:pet_id>/health-record/vaccination", methods=["POST"]
+)
+@role_required(UserRole.VET)
+def add_patient_vaccination(pet_id: int):
+    pet = _linked_patient_or_404(pet_id)
+    vaccine_name = (request.form.get("vaccine_name") or "").strip()
+    date_value = (request.form.get("vaccination_date") or "").strip()
+    time_value = (request.form.get("vaccination_time") or "").strip()
+    if not vaccine_name or len(vaccine_name) > 66:
+        flash("Enter a vaccination name of 66 characters or fewer.", "warning")
+        return redirect(url_for("vet_workspace.patient_health_record", pet_id=pet.id))
+    try:
+        vaccination_date = date.fromisoformat(date_value)
+        vaccination_time = time.fromisoformat(time_value)
+    except ValueError:
+        flash("Choose a valid vaccination date and time.", "warning")
+        return redirect(url_for("vet_workspace.patient_health_record", pet_id=pet.id))
+    scheduled_for = datetime.combine(
+        vaccination_date, vaccination_time, tzinfo=timezone.utc
+    )
+    if scheduled_for <= datetime.now(timezone.utc):
+        flash("The vaccination must be scheduled in the future.", "warning")
+        return redirect(url_for("vet_workspace.patient_health_record", pet_id=pet.id))
+
+    vaccination = Vaccination(
+        pet_id=pet.id,
+        name=vaccine_name,
+        due_on=vaccination_date,
+    )
+    appointment = Appointment(
+        kind=AppointmentKind.VET_VISIT,
+        status=AppointmentStatus.CONFIRMED,
+        scheduled_for=scheduled_for,
+        vet_id=current_user.id,
+        user_id=pet.owner_id,
+        service=f"Vaccination · {vaccine_name}",
+        note=f"{pet.name} · {pet.public_pet_id}",
+        adopter_confirmed=False,
+    )
+    db.session.add_all([vaccination, appointment])
+    Notification.push(
+        pet.owner_id,
+        f"Vaccination scheduled for {pet.name}",
+        f"{vaccine_name} is scheduled for "
+        f"{vaccination_date.strftime('%d %b %Y')} at "
+        f"{vaccination_time.strftime('%I:%M %p')}.",
+        category="health",
+        link=url_for("adopter.pet_health", pet_id=pet.id),
+    )
+    db.session.commit()
+    flash("Vaccination saved and shared with the owner.", "success")
+    return redirect(url_for("vet_workspace.patient_health_record", pet_id=pet.id))
+
+
+@vet_workspace_bp.route(
     "/patients/<int:pet_id>/health-record/book-visit", methods=["POST"]
 )
 @role_required(UserRole.VET)
 def book_patient_visit(pet_id: int):
     pet = _linked_patient_or_404(pet_id)
     visit_type = (request.form.get("visit_type") or "").strip() or "General check-up"
+    allowed_visit_types = {
+        "General check-up",
+        "Dental care",
+        "Lab test",
+        "Referral visit",
+    }
+    if visit_type not in allowed_visit_types:
+        flash("Choose a valid visit type.", "warning")
+        return redirect(url_for("vet_workspace.patient_health_record", pet_id=pet.id))
     date_value = (request.form.get("visit_date") or "").strip()
     time_value = (request.form.get("visit_time") or "").strip()
     try:
@@ -1018,54 +1074,86 @@ def add_patient_lab_report(pet_id: int):
 @role_required(UserRole.VET)
 def add_patient_prescription(pet_id: int):
     pet = _linked_patient_or_404(pet_id)
-    medicines_list = [
-        value.strip()
-        for value in request.form.getlist("medicine_name")
-        if value and value.strip()
-    ]
-    medicines = ", ".join(medicines_list)
-    days_value = (request.form.get("days") or "").strip()
-    timing = request.form.getlist("timing")
-    if not medicines or not days_value:
-        flash("Enter the medicine name and number of days.", "warning")
+    medicine_names = [value.strip() for value in request.form.getlist("medicine_name")]
+    instructions = [value.strip() for value in request.form.getlist("instructions")]
+    frequencies = [value.strip() for value in request.form.getlist("frequency")]
+    stop_date_values = [value.strip() for value in request.form.getlist("stop_date")]
+    if (
+        not medicine_names
+        or len(medicine_names) > 20
+        or len(instructions) != len(medicine_names)
+        or len(frequencies) != len(medicine_names)
+        or len(stop_date_values) != len(medicine_names)
+        or any(not name or len(name) > 120 for name in medicine_names)
+        or any(len(f"Prescription · {name}") > 200 for name in medicine_names)
+        or any(not text or len(text) > 1000 for text in instructions)
+        or any(frequency not in {"Days", "Weekly", "Monthly"} for frequency in frequencies)
+    ):
+        flash("Complete the medicine name, instructions, frequency, and stop date for each prescription.", "warning")
         return redirect(url_for("vet_workspace.patient_health_record", pet_id=pet.id))
-    try:
-        days = int(days_value)
-    except ValueError:
-        days = 0
-    if days < 1:
-        flash("Enter a valid number of days.", "warning")
-        return redirect(url_for("vet_workspace.patient_health_record", pet_id=pet.id))
-    timing_text = ", ".join(timing) if timing else "As directed"
+
+    allowed_timings = {"Morning", "Afternoon", "Evening", "Night"}
+    prescription_details = []
+    for index, (name, instruction, frequency, stop_date_value) in enumerate(
+        zip(medicine_names, instructions, frequencies, stop_date_values)
+    ):
+        try:
+            stop_date = date.fromisoformat(stop_date_value)
+        except ValueError:
+            flash("Enter a valid stop date for each prescription.", "warning")
+            return redirect(url_for("vet_workspace.patient_health_record", pet_id=pet.id))
+        if stop_date < date.today():
+            flash("A prescription stop date cannot be in the past.", "warning")
+            return redirect(url_for("vet_workspace.patient_health_record", pet_id=pet.id))
+        timings = request.form.getlist(f"timing_{index}")
+        if not timings or any(timing not in allowed_timings for timing in timings):
+            flash("Choose at least one valid timing for each prescription.", "warning")
+            return redirect(url_for("vet_workspace.patient_health_record", pet_id=pet.id))
+        detail_text = (
+            f"{name}\nInstructions: {instruction}\n"
+            f"When to take it: {frequency}\nTiming: {', '.join(timings)}\n"
+            f"Stop date: {stop_date.strftime('%d %b %Y')}"
+        )
+        prescription_details.append({
+            "name": name,
+            "stop_date": stop_date,
+            "detail_text": detail_text,
+        })
+
     start_on = date.today()
-    end_on = start_on + timedelta(days=days - 1)
-    title = f"Prescription · {medicines}"
-    plan = HealthPlan(
-        pet_id=pet.id,
-        vet_id=current_user.id,
-        title=title,
-        instructions=f"{medicines}\nTiming: {timing_text}\nDuration: {days} day(s)",
-        prescribed_medicines=medicines,
-        prescription_start_on=start_on,
-        prescription_end_on=end_on,
-    )
-    record = MedicalRecord(
-        pet_id=pet.id,
-        vet_id=current_user.id,
-        record_type=RecordType.PRESCRIPTION,
-        title=title,
-        record_date=start_on,
-        vet_name=current_user.full_name,
-        findings=f"Timing: {timing_text}",
-        summary=f"{medicines} for {days} day(s)",
-        shared_with_owner=True,
-    )
-    db.session.add_all([plan, record])
+    prescriptions = []
+    for prescription in prescription_details:
+        name = prescription["name"]
+        stop_date = prescription["stop_date"]
+        detail_text = prescription["detail_text"]
+        title = f"Prescription · {name}"
+        plan = HealthPlan(
+            pet_id=pet.id,
+            vet_id=current_user.id,
+            title=title,
+            instructions=detail_text,
+            prescribed_medicines=name,
+            prescription_start_on=start_on,
+            prescription_end_on=stop_date,
+        )
+        record = MedicalRecord(
+            pet_id=pet.id,
+            vet_id=current_user.id,
+            record_type=RecordType.PRESCRIPTION,
+            title=title,
+            record_date=start_on,
+            vet_name=current_user.full_name,
+            findings=detail_text,
+            summary=detail_text,
+            shared_with_owner=True,
+        )
+        prescriptions.extend([plan, record])
+    db.session.add_all(prescriptions)
+    medicines = ", ".join(medicine_names)
     Notification.push(
         pet.owner_id,
         f"Prescription for {pet.name}",
-        f"{current_user.full_name} prescribed {medicines} for {days} day(s), "
-        f"{timing_text.lower()}.",
+        f"{current_user.full_name} prescribed {medicines}.",
         category="health",
         link=url_for("adopter.pet_health", pet_id=pet.id),
     )

@@ -5,6 +5,10 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/community.css') }}">
 {% endblock %}
 {% block content %}
+<a class="btn btn-outline mb-4"
+   href="{{ url_for('shelter.directory') if target_type == 'shelter' else url_for('vet.directory') }}">
+  &larr; Back to Find {{ 'Shelters' if target_type == 'shelter' else 'Vets' }}
+</a>
 <div class="reviews-layout">
   <aside class="card review-summary-card">
     <div class="fw-600">{{ target_name }}</div>

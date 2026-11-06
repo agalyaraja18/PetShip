@@ -6,32 +6,65 @@
 {% block content %}
 <div class="grid grid-4 mb-5">
   {{ stat_card('My pets', stats.pets) }}
-  {{ stat_card('Applications', stats.applications) }}
-  {{ stat_card('Upcoming visits', stats.visits) }}
+  {{ stat_card('Active Applications', stats.applications) }}
+  {{ stat_card('Active appointments', stats.appointments) }}
   {{ stat_card('Monthly spend', stats.spend) }}
 </div>
 
 <div class="grid grid-2">
   <div class="card">
-    <h3>Active application</h3>
-    {% if active_app %}
-      <div class="fw-600">{{ active_app.pet.name }}</div>
-      <p class="text-sm text-muted">{{ active_app.reference }} · {{ active_app.pet.shelter.name }}</p>
-      <ol class="mini-timeline">
-        {% set ci = active_app.current_index %}
-        {% for stage in ['Application submitted','Application review','Application confirmed','Home visit','Adoption agreement','Welcome home'] %}
-          <li class="{{ 'is-done' if loop.index0 < ci }} {{ 'is-current' if loop.index0 == ci }}">{{ stage }}</li>
+    <div class="row spread row-wrap">
+      <h3>Adoption application status</h3>
+      <a class="text-sm text-primary" href="{{ url_for('adopter.adoptions', tab='applications') }}">View in Adoptions</a>
+    </div>
+    {% if adoption_applications %}
+      <div class="stack">
+        {% for application in adoption_applications %}
+          <div class="toggle-row">
+            <div class="row spread row-wrap mb-3">
+              <div>
+                <div class="fw-600">{{ application.pet.name }}</div>
+                <div class="text-sm text-muted">{{ application.reference }} · {{ application.pet.shelter.name }}</div>
+              </div>
+              {{ badge(application.stage.label, 'warning' if application.stage.value != 'agreement' else 'primary') }}
+            </div>
+            <div class="row row-wrap">
+              <a class="btn btn-outline btn-sm" href="{{ url_for('adoption.track', app_id=application.id) }}">View status</a>
+              {% if application.stage.value == 'home_visit' %}
+                <a class="btn btn-outline btn-sm"
+                   href="{{ url_for('adoption.track', app_id=application.id, _anchor='reschedule-visit') }}">Reschedule visit</a>
+              {% endif %}
+            </div>
+          </div>
         {% endfor %}
-      </ol>
-      <div class="row row-wrap">
-        <a class="btn btn-outline btn-sm" href="{{ url_for('adoption.track', app_id=active_app.id) }}">View status</a>
-        {% if active_app.stage.value == 'home_visit' %}
-          <a class="btn btn-outline btn-sm"
-             href="{{ url_for('adoption.track', app_id=active_app.id, _anchor='reschedule-visit') }}">Reschedule visit</a>
-        {% endif %}
       </div>
     {% else %}
-      <p class="text-muted">No active applications. <a href="{{ url_for('pets.browse') }}">Browse pets →</a></p>
+      <p class="text-muted mb-0">No adoption applications. <a href="{{ url_for('pets.browse') }}">Browse pets →</a></p>
+    {% endif %}
+
+    <h3 class="mt-5">Return application status</h3>
+    {% if return_applications %}
+      <div class="stack">
+        {% for application in return_applications %}
+          <div class="toggle-row">
+            <div class="row spread row-wrap">
+              <div>
+                <div class="fw-600">{{ application.pet.name }}</div>
+                <div class="text-sm text-muted">
+                  {% if application.returned_at %}Returned {{ application.returned_at.strftime('%d %b %Y') }}
+                  {% else %}Return request submitted {{ application.return_requested_at.strftime('%d %b %Y') if application.return_requested_at else '' }}{% endif %}
+                </div>
+              </div>
+              {{ badge(ReturnStatus(application.return_status).label, 'danger' if application.returned_at else 'warning') }}
+            </div>
+            {% if application.return_reason %}
+              <p class="text-sm text-muted mb-0 mt-2">Reason: {{ application.return_reason }}</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-muted mb-0">No return applications.</p>
     {% endif %}
   </div>
 
@@ -50,16 +83,17 @@
     {% endfor %}
 
     <div class="row spread mt-5 mb-3">
-      <h3 class="mb-0">Upcoming visits</h3>
+      <h3 class="mb-0">Today’s appointments</h3>
       <a class="text-sm text-primary" href="{{ url_for('adopter.appointments') }}">View appointments</a>
     </div>
-    {% for a in upcoming %}
+    {% for item in today_appointments %}
+      {% set a = item.appointment %}
       <div class="row spread toggle-row">
         <div><div class="fw-600">{{ a.service or a.kind.label }}</div><div class="text-sm text-muted">{{ a.note or '' }}</div></div>
-        <span class="text-sm">{{ a.scheduled_for.strftime('%d %b, %H:%M') }}</span>
+        <span class="text-sm">{{ item.local_time.strftime('%I:%M %p') }}</span>
       </div>
     {% else %}
-      <p class="text-muted mb-0">No upcoming visits.</p>
+      <p class="text-muted mb-0">No appointments today.</p>
     {% endfor %}
   </div>
 </div>

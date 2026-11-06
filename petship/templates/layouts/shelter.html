@@ -10,12 +10,11 @@
   <li><a href="{{ url_for('shelter.dashboard') }}" class="{{ 'is-active' if active_nav == 'dashboard' }}">Dashboard</a></li>
   <li><a href="{{ url_for('shelter_pets.listings') }}" class="{{ 'is-active' if active_nav == 'listings' }}">Pet Listings</a></li>
   <li><a href="{{ url_for('shelter_pets.add') }}" class="{{ 'is-active' if active_nav == 'addpet' }}">Add New Pet</a></li>
-  <li><a href="{{ url_for('shelter_ops.appointments') }}" class="{{ 'is-active' if active_nav == 'appointments' }}">Appointments</a></li>
   <li><a href="{{ url_for('shelter_requests.index') }}" class="{{ 'is-active' if active_nav == 'requests' }}">Adoption Requests</a></li>
-  <li><a href="{{ url_for('shelter_ops.followups') }}" class="{{ 'is-active' if active_nav == 'followups' }}">Follow-ups</a></li>
-  <li><a href="{{ url_for('shelter_ops.returns') }}" class="{{ 'is-active' if active_nav == 'returns' }}">Return Pets</a></li>
+  <li><a href="{{ url_for('shelter_ops.returns') }}" class="{{ 'is-active' if active_nav == 'returns' }}">Return Requests</a></li>
   <li><a href="{{ url_for('reminders.centre') }}" class="{{ 'is-active' if active_nav == 'reminders' }}">Smart Reminders</a></li>
-  <li><a href="{{ url_for('shelter.notifications') }}" class="{{ 'is-active' if active_nav == 'notifications' }}">Notifications</a></li>
+  <li><a href="{{ url_for('shelter_ops.reviews') }}" class="{{ 'is-active' if active_nav == 'reviews' }}">Ratings &amp; Reviews</a></li>
   <li><a href="{{ url_for('shelter.profile') }}" class="{{ 'is-active' if active_nav == 'profile' }}">Profile</a></li>
   <li><a href="{{ url_for('shelter.settings') }}" class="{{ 'is-active' if active_nav == 'settings' }}">Settings</a></li>
+  <li><a href="{{ url_for('feedback.submit') }}">Feedback</a></li>
 {% endblock %}

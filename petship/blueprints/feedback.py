@@ -36,7 +36,7 @@ def submit():
             )
             db.session.commit()
             flash("Thank you for sharing your feedback.", "success")
-            return redirect(url_for("feedback.submit"))
+            return redirect(url_for("pets.home"))
 
     return render_template(
         "feedback/submit.html",

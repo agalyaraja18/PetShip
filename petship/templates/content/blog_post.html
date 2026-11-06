@@ -12,10 +12,15 @@
     <p class="text-muted">
       {{ post.author }} · {{ post.created_at.strftime('%d %b %Y') }} · {{ post.read_minutes }} min read
     </p>
-    <div class="blog-hero" data-cat="{{ post.category }}"
-         {% if post.cover_url %}style="background-image:url('{{ post.cover_url }}')"{% endif %}></div>
+    {% if post.cover_url %}
+      <img class="blog-hero-image" src="{{ post.cover_url }}" alt="{{ post.title }}">
+    {% else %}
+      <div class="blog-hero" data-cat="{{ post.category }}"></div>
+    {% endif %}
     <div class="blog-body mt-5">
-      <p class="text-lg">{{ post.excerpt }}</p>
+      {% if post.excerpt and not (post.body or '').startswith(post.excerpt) %}
+        <p class="text-lg">{{ post.excerpt }}</p>
+      {% endif %}
       {% for para in (post.body or '').split('\n\n') %}
         {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
       {% endfor %}

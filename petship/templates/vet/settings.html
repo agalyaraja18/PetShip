@@ -47,8 +47,7 @@
         <input type="hidden" name="section" value="notifications">
         {% for key, label, description in [
           ('health_reminders', 'Health records and care plans', 'New medical records and health plans shared with you'),
-          ('vet_appointments', 'Appointments', 'Appointment bookings and updates'),
-          ('messages', 'Messages', 'New messages from pet owners')
+          ('vet_appointments', 'Appointments', 'Appointment bookings and updates')
         ] %}
           <div class="row spread toggle-row">
             <div><div class="fw-600">{{ label }}</div><div class="text-sm text-muted">{{ description }}</div></div>

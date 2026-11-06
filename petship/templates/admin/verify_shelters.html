@@ -7,6 +7,7 @@
   <a class="btn {{ 'btn-primary' if selected_view == 'all' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_shelters', view='all') }}">All</a>
   <a class="btn {{ 'btn-primary' if selected_view == 'visit' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_shelters', view='visit') }}">Shelter Visit</a>
   <a class="btn {{ 'btn-primary' if selected_view == 'approved' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_shelters', view='approved') }}">Approved Shelter</a>
+  <a class="btn {{ 'btn-primary' if selected_view == 'rejected' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_shelters', view='rejected') }}">Rejected</a>
 </nav>
 <div class="grid grid-3">
   {% for s in pending %}

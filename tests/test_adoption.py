@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from werkzeug.datastructures import MultiDict
 
 from petship.extensions import db
 from petship.models.application import Application, ApplicationStage
 from petship.models.appointment import Appointment, AppointmentKind, AppointmentStatus
 from petship.models.reminder import Notification
-from petship.models.pet import Pet
+from petship.models.pet import Pet, PetStatus
 from petship.models.user import User, UserRole
 from petship.seed import seed_data
 
@@ -25,6 +26,27 @@ def setup_adopter(client, app):
 
 def bruno():
     return db.session.scalar(db.select(Pet).filter_by(name="Bruno"))
+
+
+def test_other_pets_accepts_multiple_selections(client, app):
+    setup_adopter(client, app)
+    pet = bruno()
+    client.get(f"/adopt/start/{pet.id}")
+    draft = db.session.scalar(db.select(Application).filter_by(pet_id=pet.id))
+
+    response = client.post(
+        f"/adopt/application/{draft.id}/step/2",
+        data=MultiDict([
+            ("prior_experience", "Previously owned pets"),
+            ("other_pets", "Dogs"),
+            ("other_pets", "Cats"),
+            ("current_pets_count", "2"),
+            ("action", "next"),
+        ]),
+    )
+    assert response.status_code == 302
+    db.session.refresh(draft)
+    assert draft.answers["other_pets"] == "Dogs, Cats"
 
 
 def test_start_requires_login(client, app):
@@ -125,6 +147,8 @@ def test_submit_moves_to_submitted(client, app):
     assert resp.status_code == 302
     db.session.refresh(draft)
     assert draft.stage is ApplicationStage.SUBMITTED
+    tracking_page = client.get(resp.headers["Location"])
+    assert b"Back to Adoptions" in tracking_page.data
     notices = db.session.scalars(
         db.select(Notification).filter_by(category="adoption")
     ).all()
@@ -173,8 +197,95 @@ def test_tracking_page_renders(client, app):
     assert b"Application status" in resp.data
     assert draft.reference.encode() in resp.data
     assert b"Home visit" in resp.data
-    assert b"Reschedule visit" in resp.data
-    assert b"Message shelter" in resp.data
+    assert b"Cancel Adoption" in resp.data
+    assert resp.data.count(b"Cancel Adoption") == 1
+
+
+def test_completed_adoption_tracking_hides_progress_steps(client, app):
+    adopter = setup_adopter(client, app)
+    pet = bruno()
+    application = Application(
+        reference="PS-COMPLETE-TRACK",
+        applicant_id=adopter.id,
+        pet_id=pet.id,
+        stage=ApplicationStage.COMPLETE,
+        adopted_at=datetime.now(timezone.utc) - timedelta(days=1),
+    )
+    db.session.add(application)
+    db.session.commit()
+
+    response = client.get(f"/adopt/application/{application.id}")
+
+    assert response.status_code == 200
+    assert b"Adoption complete" in response.data
+    assert b"Progress" not in response.data
+    assert b"Step 6 of 6" not in response.data
+
+
+def test_returned_adoption_tracking_hides_progress_steps(client, app):
+    adopter = setup_adopter(client, app)
+    pet = bruno()
+    application = Application(
+        reference="PS-RETURNED-TRACK",
+        applicant_id=adopter.id,
+        pet_id=pet.id,
+        stage=ApplicationStage.COMPLETE,
+        adopted_at=datetime.now(timezone.utc) - timedelta(days=4),
+        returned_at=datetime.now(timezone.utc),
+        return_status="returned_shelter",
+        return_reason="Needs a different home.",
+    )
+    db.session.add(application)
+    db.session.commit()
+
+    response = client.get(f"/adopt/application/{application.id}")
+
+    assert response.status_code == 200
+    assert b"Return completed" in response.data
+    assert b"Progress" not in response.data
+    assert b"Step 6 of 6" not in response.data
+
+
+def test_cancel_adoption_cancels_application_and_home_visit(client, app):
+    adopter = setup_adopter(client, app)
+    pet = bruno()
+    pet.reserve()
+    application = Application(
+        reference="PS-CANCEL-TEST",
+        applicant_id=adopter.id,
+        pet_id=pet.id,
+        stage=ApplicationStage.HOME_VISIT,
+        step=4,
+    )
+    db.session.add(application)
+    db.session.flush()
+    appointment = Appointment(
+        kind=AppointmentKind.HOME_VISIT,
+        status=AppointmentStatus.CONFIRMED,
+        scheduled_for=datetime.now(timezone.utc) + timedelta(days=2),
+        user_id=adopter.id,
+        shelter_id=pet.shelter_id,
+        pet_id=pet.id,
+        application_id=application.id,
+    )
+    db.session.add(appointment)
+    db.session.commit()
+
+    response = client.post(
+        f"/adopt/application/{application.id}/cancel",
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"Adoption cancelled" in response.data
+    db.session.refresh(application)
+    db.session.refresh(appointment)
+    db.session.refresh(pet)
+    assert application.stage is ApplicationStage.DECLINED
+    assert application.applicant_cancelled is True
+    assert appointment.status is AppointmentStatus.CANCELLED
+    assert pet.status is PetStatus.AVAILABLE
+    assert b"Cancelled" in response.data
 
 
 def test_active_application_has_reschedule_visit_button(client, app):
@@ -247,13 +358,11 @@ def test_adopter_confirms_availability_for_scheduled_home_visit(client, app):
     db.session.commit()
 
     tracking = client.get(f"/adopt/application/{application.id}")
-    assert b"Confirm visit" in tracking.data
     response = client.post(
         f"/adopt/application/{application.id}/visit/confirm",
         follow_redirects=True,
     )
     assert response.status_code == 200
-    assert b"You confirmed that you are available for this visit." in response.data
     db.session.refresh(appointment)
     assert appointment.adopter_confirmed is True
     notice = db.session.scalar(

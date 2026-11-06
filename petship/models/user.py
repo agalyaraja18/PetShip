@@ -15,13 +15,11 @@ from .mixins import TimestampMixin, utcnow
 # Default notification preferences (mirrors the settings screen toggles).
 DEFAULT_NOTIFICATION_PREFS = {
     "adoption_updates": True,
+    "return_requests": True,
     "health_reminders": True,
-    "smart_reminders": True,
-    "messages": True,
-    "appointment_updates": True,
-    "sms_alerts": False,
     "vet_appointments": True,
-    "newsletter": False,
+    "smart_reminders": True,
+    "sms_alerts": False,
 }
 
 # Lifestyle tags offered on the Edit Profile screen.
@@ -168,8 +166,6 @@ class User(TimestampMixin, UserMixin, db.Model):
         merged = dict(DEFAULT_NOTIFICATION_PREFS)
         stored = self.notification_prefs or {}
         merged.update(stored)
-        if "messages" not in stored and "chat_messages" in stored:
-            merged["messages"] = stored["chat_messages"]
         return merged
 
     # ---- Role checks ----

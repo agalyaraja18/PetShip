@@ -7,6 +7,7 @@
   <a class="btn {{ 'btn-primary' if selected_view == 'all' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_vets', view='all') }}">All</a>
   <a class="btn {{ 'btn-primary' if selected_view == 'visit' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_vets', view='visit') }}">Clinic Visit</a>
   <a class="btn {{ 'btn-primary' if selected_view == 'approved' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_vets', view='approved') }}">Approved Vet</a>
+  <a class="btn {{ 'btn-primary' if selected_view == 'rejected' else 'btn-outline' }} btn-sm" href="{{ url_for('admin.verify_vets', view='rejected') }}">Rejected</a>
 </nav>
 <p class="text-sm text-muted">Check licences with the Veterinary Council. Clinic Visit lists pending vet applications; visit scheduling is not currently part of vet verification.</p>
 <div class="grid grid-3">

@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta, timezone
 from flask import (
     Blueprint,
     abort,
+    current_app,
     flash,
     redirect,
     render_template,
@@ -40,6 +41,105 @@ adopter_bp = Blueprint("adopter", __name__, url_prefix="/me")
 
 def _aware(dt):
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _is_completed_adoption(application: Application) -> bool:
+    return (
+        application.returned_at is None
+        and (
+            application.stage == ApplicationStage.COMPLETE
+            or application.adopted_at is not None
+            or application.owned_pet is not None
+        )
+    )
+
+
+def _active_adoption_applications(applicant_id: int) -> list[Application]:
+    return db.session.scalars(
+        db.select(Application)
+        .filter(
+            Application.applicant_id == applicant_id,
+            Application.stage.notin_([
+                ApplicationStage.DRAFT,
+                ApplicationStage.DECLINED,
+                ApplicationStage.COMPLETE,
+            ]),
+            Application.return_status.is_(None),
+        )
+        .order_by(Application.created_at.desc())
+    ).all()
+
+
+@adopter_bp.route("/adoptions")
+@login_required
+def adoptions():
+    from ..services.scheduler import run_due_reminders
+    run_due_reminders(current_app._get_current_object())
+    active_applications = _active_adoption_applications(current_user.id)
+    tab = request.args.get("tab")
+    if tab is None:
+        tab = "applications" if active_applications else "adopted"
+    if tab not in {"applications", "adopted", "returns", "declined", "cancelled"}:
+        tab = "adopted"
+
+    all_applications = db.session.scalars(
+        db.select(Application)
+        .filter(Application.applicant_id == current_user.id)
+        .order_by(Application.adopted_at.desc(), Application.created_at.desc())
+    ).all()
+    adopted_applications = [
+        app for app in all_applications
+        if _is_completed_adoption(app) and app.return_status is None
+    ]
+    returned_applications = [
+        app for app in all_applications
+        if app.returned_at is not None
+    ]
+    declined_applications = [
+        app for app in all_applications
+        if app.stage == ApplicationStage.DECLINED and not app.applicant_cancelled
+    ]
+    cancelled_applications = [
+        app for app in all_applications
+        if app.stage == ApplicationStage.DECLINED and app.applicant_cancelled
+    ]
+    owned_adoptions = db.session.scalars(
+        db.select(OwnedPet)
+        .filter(
+            OwnedPet.owner_id == current_user.id,
+            OwnedPet.adopted_on.is_not(None),
+        )
+        .order_by(OwnedPet.adopted_on.desc(), OwnedPet.id.desc())
+    ).all()
+    application_owned_pet_ids = {
+        app.owned_pet.id
+        for app in adopted_applications
+        if app.owned_pet is not None
+    }
+    legacy_owned_adoptions = [
+        pet for pet in owned_adoptions
+        if pet.id not in application_owned_pet_ids
+    ]
+    now = datetime.now(timezone.utc)
+    returnable_app_ids = {
+        app.id for app in adopted_applications
+        if app.return_status is None
+        and app.stage == ApplicationStage.COMPLETE
+        and app.adopted_at is not None
+        and _aware(app.adopted_at) <= now <= _aware(app.adopted_at) + timedelta(days=30)
+    }
+    return render_template(
+        "adopter/adoptions.html",
+        tab=tab,
+        active_applications=active_applications,
+        adopted_applications=adopted_applications,
+        legacy_owned_adoptions=legacy_owned_adoptions,
+        returned_applications=returned_applications,
+        declined_applications=declined_applications,
+        cancelled_applications=cancelled_applications,
+        returnable_app_ids=returnable_app_ids,
+        active_nav="adoptions",
+    )
 
 
 def _care_plans(pet: OwnedPet) -> dict:
@@ -85,6 +185,8 @@ def _care_plans(pet: OwnedPet) -> dict:
 @adopter_bp.route("/dashboard")
 @login_required
 def dashboard():
+    from ..services.scheduler import run_due_reminders
+    run_due_reminders(current_app._get_current_object())
     pets = db.session.scalars(
         db.select(OwnedPet)
         .outerjoin(Application, OwnedPet.application_id == Application.id)
@@ -94,44 +196,60 @@ def dashboard():
         )
     ).all()
 
-    active_apps = db.session.scalars(
+    adoption_applications = _active_adoption_applications(current_user.id)
+    return_applications = db.session.scalars(
         db.select(Application)
         .filter(
             Application.applicant_id == current_user.id,
-            Application.stage.notin_(
-                [ApplicationStage.DRAFT, ApplicationStage.COMPLETE, ApplicationStage.DECLINED]
-            ),
+            Application.return_status.is_not(None),
+            Application.returned_at.is_(None),
         )
-        .order_by(Application.created_at.desc())
+        .order_by(Application.return_requested_at.desc(), Application.created_at.desc())
     ).all()
 
     now = datetime.now(timezone.utc)
-    upcoming = db.session.scalars(
+    appointments = db.session.scalars(
         db.select(Appointment)
         .filter(
             Appointment.user_id == current_user.id,
-            Appointment.status != AppointmentStatus.CANCELLED,
+            Appointment.status.in_(
+                [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]
+            ),
         )
         .order_by(Appointment.scheduled_for.asc())
     ).all()
-    upcoming = [a for a in upcoming if _aware(a.scheduled_for) >= now]
+    appointments = [a for a in appointments if _aware(a.scheduled_for) >= now]
+    today_appointments = [
+        appointment
+        for appointment in appointments
+        if _aware(appointment.scheduled_for).astimezone().date()
+        == now.astimezone().date()
+    ]
+    today_appointments = [
+        {
+            "appointment": appointment,
+            "local_time": _aware(appointment.scheduled_for).astimezone(),
+        }
+        for appointment in today_appointments
+    ]
     expenses = db.session.scalars(
         db.select(ExpenseItem).filter_by(owner_id=current_user.id)
     ).all()
     monthly_spend = sum(item.monthly_amount for item in expenses)
-
     stats = {
         "pets": len(pets),
-        "applications": len(active_apps),
-        "visits": len(upcoming),
+        "applications": len(adoption_applications) + len(return_applications),
+        "appointments": len(appointments),
         "spend": f"₹{monthly_spend:,.0f}",
     }
     return render_template(
         "adopter/dashboard.html",
         user=current_user,
         pets=pets,
-        active_app=active_apps[0] if active_apps else None,
-        upcoming=upcoming[:3],
+        adoption_applications=adoption_applications,
+        return_applications=return_applications,
+        today_appointments=today_appointments,
+        ReturnStatus=ReturnStatus,
         stats=stats,
         active_nav="dashboard",
     )
@@ -236,87 +354,13 @@ def cancel_appointment(appt_id: int):
 @adopter_bp.route("/followups")
 @login_required
 def followups():
-    items = db.session.scalars(
-        db.select(FollowUp)
-        .join(Application, FollowUp.application_id == Application.id)
-        .filter(
-            Application.applicant_id == current_user.id,
-            Application.stage == ApplicationStage.COMPLETE,
-            Application.returned_at.is_(None),
-            FollowUp.milestone.in_(("7 days", "15 days", "30 days")),
-        )
-        .order_by(FollowUp.due_on.asc())
-    ).all()
-    now = datetime.now(timezone.utc)
-    actionable_ids = {
-        fu.id for fu in items
-        if fu.status == FollowUpStatus.DUE and _aware(fu.due_on) <= now
-    }
-    return render_template(
-        "adopter/followups.html",
-        followups=items,
-        actionable_ids=actionable_ids,
-        active_nav="followups",
-    )
+    return redirect(url_for("adopter.adoptions", tab="adopted"))
 
 
 @adopter_bp.route("/returns")
 @login_required
 def returns():
-    all_applications = db.session.scalars(
-        db.select(Application)
-        .filter(
-            Application.applicant_id == current_user.id,
-            Application.stage == ApplicationStage.COMPLETE,
-        )
-        .order_by(Application.return_requested_at.desc(), Application.adopted_at.desc())
-    ).all()
-    now = datetime.now(timezone.utc)
-    returnable_app_ids = {
-        application.id for application in all_applications
-        if application.return_status is None
-        and application.returned_at is None
-        and application.adopted_at is not None
-        and _aware(application.adopted_at) <= now <= _aware(application.adopted_at) + timedelta(days=30)
-    }
-    status_options = [
-        ("open", "Open"),
-        (ReturnStatus.SUBMITTED.value, "Return submitted"),
-        (ReturnStatus.SHELTER_REVIEW.value, "Shelter review"),
-        (ReturnStatus.SHELTER_CONFIRMED.value, "Shelter confirmed"),
-        (ReturnStatus.RETURN_VISIT.value, "Return visit"),
-        (ReturnStatus.RETURNED_SHELTER.value, "Returned"),
-        ("all", "All"),
-    ]
-    status = request.args.get("status", "open")
-    if status not in {key for key, _ in status_options}:
-        status = "open"
-
-    if status == "open":
-        applications = [
-            application for application in all_applications
-            if application.id in returnable_app_ids
-            or (
-                application.return_status is not None
-                and application.return_status != ReturnStatus.RETURNED_SHELTER.value
-            )
-        ]
-    elif status == "all":
-        applications = all_applications
-    else:
-        applications = [
-            application for application in all_applications
-            if application.return_status == status
-        ]
-    return render_template(
-        "adopter/returns.html",
-        applications=applications,
-        returnable_app_ids=returnable_app_ids,
-        status=status,
-        status_options=status_options,
-        ReturnStatus=ReturnStatus,
-        active_nav="returns",
-    )
+    return redirect(url_for("adopter.adoptions", tab="returns"))
 
 
 @adopter_bp.route("/followups/<int:fu_id>/respond", methods=["POST"])
@@ -435,12 +479,14 @@ def return_adopted_pet(app_id: int):
     )
     db.session.commit()
     flash(f"Your return request for {application.pet.name} was sent to the shelter.", "success")
-    return redirect(url_for("adopter.returns"))
+    return redirect(url_for("adopter.adoptions", tab="returns"))
 
 
 @adopter_bp.route("/pets")
 @login_required
 def my_pets():
+    from ..services.scheduler import run_due_reminders
+    run_due_reminders(current_app._get_current_object())
     pets = db.session.scalars(
         db.select(OwnedPet)
         .outerjoin(Application, OwnedPet.application_id == Application.id)
@@ -751,6 +797,7 @@ def pet_health(pet_id: int):
         prescription_items.append({
             "title": plan.title,
             "medicines": plan.prescribed_medicines,
+            "instructions": plan.instructions,
             "date": plan_date,
             "end_date": end_date,
         })
@@ -763,6 +810,7 @@ def pet_health(pet_id: int):
             prescription_items.append({
                 "title": record.title,
                 "medicines": record.summary,
+                "instructions": record.findings,
                 "date": record.record_date,
                 "end_date": record.record_date,
             })

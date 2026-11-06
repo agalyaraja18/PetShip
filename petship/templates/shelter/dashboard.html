@@ -8,16 +8,21 @@
   </div>
 {% endblock %}
 {% block content %}
-<div class="grid grid-4 mb-5">
+<div class="grid grid-3 mb-5">
   {{ stat_card('Listed pets', stats.listed) }}
-  {{ stat_card('New requests', stats.new_requests, stats.new_requests ~ ' need review') }}
-  {{ stat_card('Adopted', stats.adopted, 'All time') }}
+  {{ stat_card('Adopted pets', stats.adopted) }}
+  {{ stat_card('Returned pets', stats.returned) }}
+  {{ stat_card('New adoption requests', stats.new_requests) }}
+  {{ stat_card('New return requests', stats.new_return_requests) }}
   {{ stat_card('Verified', 'Yes' if shelter.is_verified else 'Pending') }}
 </div>
 
-<div class="grid" style="grid-template-columns: 1.3fr 1fr; gap: var(--space-5);">
+<div class="grid grid-2" style="gap: var(--space-5); align-items: start;">
   <div class="card">
-    <h3>Recent adoption requests</h3>
+    <div class="row spread row-wrap">
+      <h2 class="h3">Recent adoption requests</h2>
+      <a class="text-sm text-primary" href="{{ url_for('shelter_requests.index') }}">View all</a>
+    </div>
     {% if recent_requests %}
       <table class="data-table">
         <thead><tr><th>Applicant</th><th>Pet</th><th>Date</th><th>Status</th></tr></thead>
@@ -27,7 +32,11 @@
               <td>{{ req.applicant.full_name }}</td>
               <td>{{ req.pet.name }}</td>
               <td>{{ req.created_at.strftime('%d %b') }}</td>
-              <td>{{ badge(req.stage.label, 'primary') }}</td>
+              <td>
+                <a href="{{ url_for('shelter_requests.detail', app_id=req.id) }}">
+                  {{ badge(req.stage.label, 'primary') }}
+                </a>
+              </td>
             </tr>
           {% endfor %}
         </tbody>
@@ -38,8 +47,29 @@
   </div>
 
   <div class="card">
-    <h3>Adoptions per month</h3>
-    <canvas id="adoptionsChart" height="200"></canvas>
+    <div class="row spread row-wrap">
+      <h2 class="h3">Recent return requests</h2>
+      <a class="text-sm text-primary" href="{{ url_for('shelter_ops.returns') }}">View all</a>
+    </div>
+    {% for req in recent_return_requests %}
+      <a class="toggle-row" href="{{ url_for('shelter_ops.returns', status=req.return_status) }}">
+        <div class="row spread row-wrap">
+          <div class="fw-600">{{ req.pet.name }} · {{ req.applicant.full_name }}</div>
+          {{ badge(req.return_status.replace('_', ' ').capitalize(), 'warning') }}
+        </div>
+        <div class="text-sm text-muted">
+          {{ req.return_reason or 'No reason provided' }}
+          {% if req.return_requested_at %} · {{ req.return_requested_at.strftime('%d %b') }}{% endif %}
+        </div>
+      </a>
+    {% else %}
+      <p class="text-muted mb-0">No return requests yet.</p>
+    {% endfor %}
+  </div>
+
+  <div class="card" style="grid-column: 1 / -1;">
+    <h2 class="h3">Adoptions per month</h2>
+    <canvas id="adoptionsChart" height="120" aria-label="Adoptions per month over the last six months"></canvas>
   </div>
 </div>
 
@@ -49,16 +79,16 @@
   new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: ['May','Jun','Jul','Aug','Sep','Oct'],
+      labels: {{ adoption_month_labels | tojson }},
       datasets: [{
-        data: [8, 6, 7, 9, 10, {{ stats.adopted or 12 }}],
+        data: {{ adoption_month_values | tojson }},
         backgroundColor: '#d99b7c',
         borderRadius: 6,
       }]
     },
     options: {
       plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { display: false } }, x: { grid: { display: false } } }
     }
   });
 </script>

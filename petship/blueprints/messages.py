@@ -14,7 +14,7 @@ from flask_login import current_user, login_required
 from ..extensions import db
 from ..models.message import Message, Thread
 from ..models.reminder import Notification
-from ..models.user import User
+from ..models.user import User, UserRole
 from ..realtime import emit_message
 
 messages_bp = Blueprint("messages", __name__, url_prefix="/messages")
@@ -45,6 +45,8 @@ def _my_threads():
 @messages_bp.route("/<int:thread_id>")
 @login_required
 def inbox(thread_id: int | None = None):
+    if current_user.role == UserRole.VET:
+        abort(404)
     threads = _my_threads()
     active = None
     if thread_id:
@@ -102,6 +104,8 @@ def _layout_for(user):
 @messages_bp.route("/start/<int:user_id>")
 @login_required
 def start(user_id: int):
+    if current_user.role == UserRole.VET:
+        abort(404)
     other = db.session.get(User, user_id)
     if other is None or user_id == current_user.id:
         abort(404)
@@ -112,6 +116,8 @@ def start(user_id: int):
 @messages_bp.route("/<int:thread_id>/send", methods=["POST"])
 @login_required
 def send(thread_id: int):
+    if current_user.role == UserRole.VET:
+        abort(404)
     thread = db.session.get(Thread, thread_id)
     if thread is None or current_user.id not in (thread.user_a_id, thread.user_b_id):
         abort(404)

@@ -4,46 +4,74 @@
 {% block page_title %}Platform overview{% endblock %}
 {% block page_subtitle %}{% endblock %}
 {% block content %}
-<div class="grid grid-5 mb-5">
+<div class="grid grid-3 mb-5">
   {{ stat_card('Users', '{:,}'.format(stats.users)) }}
+  {{ stat_card('Adopters', '{:,}'.format(stats.adopters)) }}
   {{ stat_card('Shelters', stats.shelters, pending_shelters ~ ' pending') }}
   {{ stat_card('Vets', stats.vets, pending_vets ~ ' pending') }}
   {{ stat_card('Adoptions', stats.adoptions, 'All time') }}
   {{ stat_card('Open reports', stats.reports) }}
 </div>
 
-<div class="grid" style="grid-template-columns: 1.3fr 1fr; gap: var(--space-5);">
+<div class="grid grid-2 mb-5">
   <div class="card">
     <h3>Adoptions over time</h3>
-    <canvas id="adoptChart" height="200"></canvas>
+    <canvas id="adoptChart" height="180"></canvas>
   </div>
   <div class="card">
-    <h3>Verification queue</h3>
-    {% for item in queue %}
-      <div class="row spread toggle-row">
-        <div><div class="fw-600">{{ item.name }}</div><div class="text-sm text-muted">{{ item.type|capitalize }}</div></div>
-        <a class="btn btn-primary btn-sm" href="{{ url_for('admin.verify_shelters') if item.type == 'shelter' else url_for('admin.verify_vets') }}">Review</a>
-      </div>
-    {% else %}
-      <p class="text-muted mb-0">Nothing pending. All caught up.</p>
-    {% endfor %}
+    <h3>PetShip usage over time</h3>
+    <p class="text-sm text-muted">Completed adoptions, vet appointments, and AI matches.</p>
+    <canvas id="usageChart" height="180"></canvas>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <div class="row spread"><h3>Shelter verification</h3><a href="{{ url_for('admin.verify_shelters') }}">View queue</a></div>
+    <p class="text-sm text-muted">{{ pending_shelters }} pending</p>
+    {% for shelter in shelter_queue %}
+      <div class="row spread toggle-row"><span class="fw-600">{{ shelter.name }}</span><a class="btn btn-primary btn-sm" href="{{ url_for('admin.verify_shelters') }}">Review</a></div>
+    {% else %}<p class="text-muted mb-0">Nothing pending. All caught up.</p>{% endfor %}
+  </div>
+  <div class="card">
+    <div class="row spread"><h3>Admin verification queue</h3><a href="{{ url_for('admin.verify_vets') }}">View queue</a></div>
+    <p class="text-sm text-muted">{{ pending_vets }} veterinarian registrations awaiting admin review</p>
+    {% for vet in vet_queue %}
+      <div class="row spread toggle-row"><span class="fw-600">{{ vet.display_name }}</span><a class="btn btn-primary btn-sm" href="{{ url_for('admin.verify_vets') }}">Review</a></div>
+    {% else %}<p class="text-muted mb-0">Nothing pending. All caught up.</p>{% endfor %}
   </div>
 </div>
 
 <script src="{{ url_for('static', filename='js/vendor/chart.min.js') }}"></script>
 <script>
+  const overviewLabels = {{ labels|tojson }};
   new Chart(document.getElementById('adoptChart'), {
     type: 'line',
     data: {
-      labels: ['May','Jun','Jul','Aug','Sep','Oct'],
+      labels: overviewLabels,
       datasets: [{
-        data: [4, 6, 5, 8, 10, {{ stats.adoptions or 12 }}],
+        label: 'Completed adoptions',
+        data: {{ adoption_series|tojson }},
         borderColor: '#a85d43', backgroundColor: 'rgba(168,93,67,0.1)',
         fill: true, tension: 0.4,
       }]
     },
-    options: { plugins: { legend: { display: false } },
-               scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } }
+    options: { plugins: { legend: { position: 'bottom' } },
+               scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+  new Chart(document.getElementById('usageChart'), {
+    type: 'line',
+    data: {
+      labels: overviewLabels,
+      datasets: [{
+        label: 'Platform activity',
+        data: {{ usage_series|tojson }},
+        borderColor: '#4b8f8c', backgroundColor: 'rgba(75,143,140,0.12)',
+        fill: true, tension: 0.4,
+      }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } },
+               scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
   });
 </script>
 {% endblock %}

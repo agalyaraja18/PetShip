@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from petship.extensions import db
-from petship.models.content import ContactMessage
+from petship.models.content import BlogPost, ContactMessage
 from petship.models.pet import Pet, PetStatus
 from petship.seed import seed_data
 
@@ -98,6 +98,32 @@ def test_blog_post_detail(client, app):
     resp = client.get("/blog/first-30-days-rescue-dog")
     assert resp.status_code == 200
     assert b"Week one: decompress" in resp.data
+
+
+def test_blog_post_does_not_repeat_body_excerpt_or_tile_cover_image(client, app):
+    body = (
+        "Keep your cat healthy with balanced meals and fresh water.\n\n"
+        "Schedule routine veterinary check-ups and provide daily play."
+    )
+    post = BlogPost(
+        slug="healthy-cat-blog-image-test",
+        title="How to take care of a cat",
+        category="Health",
+        author="Agalya",
+        excerpt=body[:160],
+        body=body,
+        cover_url="/static/uploads/blog/test-cover.jpg",
+        published=True,
+    )
+    db.session.add(post)
+    db.session.commit()
+
+    response = client.get(f"/blog/{post.slug}")
+
+    assert response.status_code == 200
+    assert response.data.count(b"Keep your cat healthy with balanced meals and fresh water.") == 1
+    assert b'<img class="blog-hero-image" src="/static/uploads/blog/test-cover.jpg"' in response.data
+    assert b"background-image:url('/static/uploads/blog/test-cover.jpg')" not in response.data
 
 
 def test_blog_unknown_slug_404(client, app):

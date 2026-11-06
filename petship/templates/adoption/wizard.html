@@ -90,9 +90,9 @@
           <label>Do you have other pets now?</label>
           <div class="row row-wrap chip-choice">
             {% for opt in ['No', 'Dogs', 'Cats', 'Other'] %}
-              <label class="pill {{ 'is-active' if answers.get('other_pets') == opt }}">
-                <input type="radio" name="other_pets" value="{{ opt }}" hidden
-                       {{ 'checked' if answers.get('other_pets') == opt }}>{{ opt }}</label>
+              <label class="pill {{ 'is-active' if opt in (answers.get('other_pets', '')|string).split(', ') }}">
+                <input type="checkbox" name="other_pets" value="{{ opt }}" hidden
+                       {{ 'checked' if opt in (answers.get('other_pets', '')|string).split(', ') }}>{{ opt }}</label>
             {% endfor %}
           </div>
         </div>
@@ -158,6 +158,13 @@
   </div>
 </main>
 <script>
+  window.addEventListener('pageshow', function () {
+    if (sessionStorage.getItem('petship-adoption-submitted') === '1') {
+      sessionStorage.removeItem('petship-adoption-submitted');
+      window.location.replace("{{ url_for('adopter.adoptions', tab='adopted') }}");
+    }
+  });
+
   // Radio "pill" chips: reflect selection and allow single-choice toggling.
   document.querySelectorAll('.chip-choice').forEach(function (group) {
     group.addEventListener('click', function (e) {

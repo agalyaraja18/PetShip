@@ -8,9 +8,10 @@
 .blog-cover[data-cat="Health"], .blog-hero[data-cat="Health"] { background: linear-gradient(135deg, #7fb48a, #4f7a52); }
 .blog-cover[data-cat="Nutrition"], .blog-hero[data-cat="Nutrition"] { background: linear-gradient(135deg, #e8b923, #c97a2b); }
 .blog-cover[data-cat="Training"], .blog-hero[data-cat="Training"] { background: linear-gradient(135deg, #8fb3d6, #5a7fa3); }
-.blog-cover, .blog-hero { background-position: center; background-size: cover; background-repeat: no-repeat; }
+.blog-cover-image, .blog-hero-image { display:block; width:100%; aspect-ratio:16 / 9; object-fit:cover; }
 .blog-card-body { padding: var(--space-4); }
 .blog-hero { border-radius: var(--radius-lg); margin-top: var(--space-4); }
+.blog-hero-image { border-radius:var(--radius-lg); margin-top:var(--space-4); }
 
 .blog-article { display: grid; grid-template-columns: 1fr 300px; gap: var(--space-6); }
 .blog-body { max-width: 68ch; }

@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from flask import (
     Blueprint,
@@ -73,26 +74,66 @@ def _owned_application_or_404(app_id: int) -> Application:
 @shelter_requests_bp.route("")
 @role_required(UserRole.SHELTER)
 def index():
+    from ..services.scheduler import run_due_reminders
+    run_due_reminders(current_app._get_current_object())
     from .shelter import _require_shelter
 
     shelter = _require_shelter()
     pet_ids = [p.id for p in shelter.pets]
-    status = request.args.get("status", "open")
+    status = request.args.get("status", "new")
+    if status not in {"new", "review", "home_visit", "approved", "adopted", "declined"}:
+        status = "new"
 
     applications = []
+    status_counts = {
+        "new": 0,
+        "review": 0,
+        "home_visit": 0,
+        "approved": 0,
+        "adopted": 0,
+        "declined": 0,
+    }
     if pet_ids:
+        stage_counts = db.session.execute(
+            db.select(Application.stage, db.func.count(Application.id))
+            .filter(
+                Application.pet_id.in_(pet_ids),
+                Application.stage != ApplicationStage.DRAFT,
+            )
+            .group_by(Application.stage)
+        ).all()
+        counts_by_stage = {stage: count for stage, count in stage_counts}
+        status_counts.update({
+            "new": counts_by_stage.get(ApplicationStage.SUBMITTED, 0),
+            "review": (
+                counts_by_stage.get(ApplicationStage.REVIEW, 0)
+                + counts_by_stage.get(ApplicationStage.CONFIRMED, 0)
+            ),
+            "home_visit": counts_by_stage.get(ApplicationStage.HOME_VISIT, 0),
+            "approved": counts_by_stage.get(ApplicationStage.AGREEMENT, 0),
+            "adopted": counts_by_stage.get(ApplicationStage.COMPLETE, 0),
+            "declined": counts_by_stage.get(ApplicationStage.DECLINED, 0),
+        })
         query = db.select(Application).filter(
             Application.pet_id.in_(pet_ids),
             Application.stage != ApplicationStage.DRAFT,
         )
-        if status == "open":
+        if status == "new":
+            query = query.filter(Application.stage == ApplicationStage.SUBMITTED)
+        elif status == "review":
             query = query.filter(
-                Application.stage.notin_(
-                    [ApplicationStage.COMPLETE, ApplicationStage.DECLINED]
+                Application.stage.in_(
+                    [ApplicationStage.REVIEW, ApplicationStage.CONFIRMED]
                 )
             )
-        elif status != "all":
-            query = query.filter(Application.stage == ApplicationStage(status))
+        elif status == "home_visit":
+            query = query.filter(Application.stage == ApplicationStage.HOME_VISIT)
+        elif status == "approved":
+            query = query.filter(Application.stage == ApplicationStage.AGREEMENT)
+        elif status == "adopted":
+            query = query.filter(Application.stage == ApplicationStage.COMPLETE)
+        elif status == "declined":
+            query = query.filter(Application.stage == ApplicationStage.DECLINED)
         applications = db.session.scalars(
             query.order_by(Application.created_at.desc())
         ).all()
@@ -106,24 +147,56 @@ def index():
         "shelter/requests.html",
         scored=scored,
         status=status,
+        status_counts=status_counts,
         shelter_name=shelter.name,
         active_nav="requests",
     )
 
 
+def _aware(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _parse_local_datetime(value: str) -> datetime | None:
+    try:
+        parsed = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(timezone.utc)
+    browser_timezone = request.form.get("browser_timezone", "Asia/Kolkata")
+    try:
+        local_timezone = ZoneInfo(browser_timezone)
+    except Exception:
+        local_timezone = ZoneInfo("Asia/Kolkata")
+    return parsed.replace(tzinfo=local_timezone).astimezone(timezone.utc)
+
+
 @shelter_requests_bp.route("/<int:app_id>")
 @role_required(UserRole.SHELTER)
 def detail(app_id: int):
+    from ..services.scheduler import run_due_reminders
+    run_due_reminders(current_app._get_current_object())
     application = _owned_application_or_404(app_id)
     home_visit = db.session.scalar(
         db.select(Appointment)
         .filter_by(application_id=application.id, kind=AppointmentKind.HOME_VISIT)
         .order_by(Appointment.scheduled_for.desc())
     )
+    welcome_home = db.session.scalar(
+        db.select(Appointment)
+        .filter_by(
+            application_id=application.id,
+            kind=AppointmentKind.PICKUP,
+        )
+        .filter(Appointment.status != AppointmentStatus.CANCELLED)
+        .order_by(Appointment.scheduled_for.desc())
+    )
     return render_template(
         "shelter/applicant.html",
         application=application,
         home_visit=home_visit,
+        welcome_home=welcome_home,
         agreement=application.agreement,
         score=_match_score(application),
         shelter_name=application.pet.shelter.name,
@@ -136,6 +209,7 @@ def detail(app_id: int):
 def action(app_id: int):
     application = _owned_application_or_404(app_id)
     what = request.form.get("action")
+    welcome_home_rescheduled = False
 
     if what == "review" and application.stage == ApplicationStage.SUBMITTED:
         application.stage = ApplicationStage.REVIEW
@@ -145,13 +219,10 @@ def action(app_id: int):
         flash("Application confirmed.", "success")
     elif what == "home_visit" and application.stage == ApplicationStage.CONFIRMED:
         requested = request.form.get("scheduled_for", "")
-        try:
-            scheduled_for = datetime.fromisoformat(requested)
-        except ValueError:
+        scheduled_for = _parse_local_datetime(requested)
+        if scheduled_for is None:
             flash("Choose a valid date and time for the home visit.", "warning")
             return redirect(url_for("shelter_requests.detail", app_id=application.id))
-        if scheduled_for.tzinfo is None:
-            scheduled_for = scheduled_for.replace(tzinfo=timezone.utc)
         if scheduled_for <= datetime.now(timezone.utc):
             flash("Choose a future date and time for the home visit.", "warning")
             return redirect(url_for("shelter_requests.detail", app_id=application.id))
@@ -172,26 +243,87 @@ def action(app_id: int):
         db.session.add(appointment)
         flash("Home visit scheduled.", "success")
     elif what == "agreement" and application.stage == ApplicationStage.HOME_VISIT:
-        visit = db.session.scalar(
-            db.select(Appointment)
-            .filter_by(
-                application_id=application.id,
-                kind=AppointmentKind.HOME_VISIT,
-                status=AppointmentStatus.COMPLETED,
-            )
-        )
-        if visit is None:
-            flash("Mark the home visit complete before moving to the agreement.", "warning")
-            return redirect(url_for("shelter_requests.detail", app_id=application.id))
         application.stage = ApplicationStage.AGREEMENT
-        flash("Moved to adoption agreement.", "success")
+        flash("Adoption approved. You can now schedule the welcome-home date and time.", "success")
+    elif what == "schedule_welcome_home" and application.stage == ApplicationStage.AGREEMENT:
+        requested = request.form.get("scheduled_for", "")
+        if not requested:
+            flash("Choose a welcome-home date and time.", "warning")
+            return redirect(url_for("shelter_requests.detail", app_id=application.id))
+        scheduled_for = _parse_local_datetime(requested)
+        if scheduled_for is None:
+            flash("Choose a valid welcome-home date and time.", "warning")
+            return redirect(url_for("shelter_requests.detail", app_id=application.id))
+        if scheduled_for <= datetime.now(timezone.utc):
+            flash("Choose a future welcome-home date and time.", "warning")
+            return redirect(url_for("shelter_requests.detail", app_id=application.id))
+        pickup = db.session.scalar(
+            db.select(Appointment)
+            .filter_by(application_id=application.id, kind=AppointmentKind.PICKUP)
+            .order_by(Appointment.scheduled_for.desc())
+        )
+        welcome_home_rescheduled = (
+            pickup is not None and pickup.status != AppointmentStatus.CANCELLED
+        )
+        if pickup is None:
+            pickup = Appointment(
+                application_id=application.id,
+                kind=AppointmentKind.PICKUP,
+                shelter_id=application.pet.shelter_id,
+                user_id=application.applicant_id,
+                pet_id=application.pet_id,
+                note="Welcome-home adoption date",
+            )
+            db.session.add(pickup)
+        pickup.status = AppointmentStatus.CONFIRMED
+        pickup.scheduled_for = scheduled_for
+        pickup.location = (
+            (request.form.get("location") or "").strip()
+            or pickup.location
+            or application.applicant.city
+        )
+        pickup.adopter_confirmed = False
+        flash(
+            "Welcome-home date and time updated and shared with the adopter."
+            if welcome_home_rescheduled
+            else "Welcome-home date and time scheduled and shared with the adopter.",
+            "success",
+        )
     elif what == "complete" and application.stage == ApplicationStage.AGREEMENT:
-        if application.agreement is None or not application.agreement.is_fully_signed:
-            flash("Both parties must sign the adoption agreement before completing the adoption.", "warning")
+        pickup = db.session.scalar(
+            db.select(Appointment)
+            .filter_by(application_id=application.id, kind=AppointmentKind.PICKUP)
+            .filter(Appointment.status != AppointmentStatus.CANCELLED)
+            .order_by(Appointment.scheduled_for.desc())
+        )
+        legacy_signed_agreement = application.agreement is not None and application.agreement.is_fully_signed
+        if (
+            pickup is None
+            and not legacy_signed_agreement
+        ):
+            flash("Schedule a welcome-home date and approve the adoption before completing it.", "warning")
             return redirect(url_for("shelter_requests.detail", app_id=application.id))
         application.stage = ApplicationStage.COMPLETE
         application.adopted_at = datetime.now(timezone.utc)
+        if pickup is not None:
+            pickup.status = AppointmentStatus.COMPLETED
         application.pet.mark_adopted()
+        if application.owned_pet is None:
+            listed_pet = application.pet
+            db.session.add(
+                OwnedPet(
+                    owner_id=application.applicant_id,
+                    application_id=application.id,
+                    name=listed_pet.name,
+                    species=listed_pet.species.label if listed_pet.species else None,
+                    breed=listed_pet.breed,
+                    sex=listed_pet.sex.label if listed_pet.sex else None,
+                    weight_kg=listed_pet.weight_kg,
+                    photo_url=listed_pet.primary_photo,
+                    personality_tags=list(listed_pet.personality_tags or []),
+                    adopted_on=application.adopted_at.date(),
+                )
+            )
         # Schedule the standard post-adoption follow-up milestones.
         from .shelter_ops import create_followups_for
 
@@ -202,6 +334,7 @@ def action(app_id: int):
         ApplicationStage.DECLINED,
     ):
         application.stage = ApplicationStage.DECLINED
+        application.applicant_cancelled = False
         flash("Application declined.", "info")
     else:
         flash("That application step is not available at this stage.", "warning")
@@ -221,6 +354,32 @@ def action(app_id: int):
         email=True,
         email_subject=f"PetShip: your application for {application.pet.name}",
     )
+    if what == "schedule_welcome_home":
+        pickup = db.session.scalar(
+            db.select(Appointment)
+            .filter_by(application_id=application.id, kind=AppointmentKind.PICKUP)
+            .order_by(Appointment.scheduled_for.desc())
+        )
+        if pickup is not None:
+            schedule_action = (
+                "rescheduled" if welcome_home_rescheduled else "set"
+            )
+            notify(
+                application.applicant,
+                title=f"Welcome-home date {schedule_action} for {application.pet.name}",
+                body=(
+                    f"{'Updated to' if welcome_home_rescheduled else 'Scheduled for'} "
+                    f"{pickup.scheduled_for.strftime('%d %b %Y at %I:%M %p')}"
+                    + (f" · {pickup.location}" if pickup.location else "")
+                ),
+                category="adoption",
+                link=url_for("adoption.track", app_id=application.id),
+                email=True,
+                email_subject=(
+                    f"PetShip: welcome-home date {schedule_action} "
+                    f"for {application.pet.name}"
+                ),
+            )
     if what == "home_visit":
         appointment = db.session.scalar(
             db.select(Appointment)

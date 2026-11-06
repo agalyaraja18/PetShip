@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import (
     Blueprint,
@@ -268,43 +269,51 @@ def returns():
     shelter = _require_shelter()
     pet_ids = [pet.id for pet in shelter.pets]
     status_options = [
-        ("open", "Open"),
-        (ReturnStatus.SUBMITTED.value, "Submitted"),
-        (ReturnStatus.SHELTER_REVIEW.value, "In review"),
+        (ReturnStatus.SUBMITTED.value, "New"),
+        (ReturnStatus.SHELTER_REVIEW.value, "Reviewed"),
         (ReturnStatus.SHELTER_CONFIRMED.value, "Confirmed"),
         (ReturnStatus.RETURN_VISIT.value, "Return visit"),
         (ReturnStatus.RETURNED_SHELTER.value, "Returned"),
-        ("all", "All"),
     ]
-    status = request.args.get("status", "open")
+    status = request.args.get("status", ReturnStatus.SUBMITTED.value)
     if status not in {key for key, _ in status_options}:
-        status = "open"
+        status = ReturnStatus.SUBMITTED.value
+
+    status_counts = {key: 0 for key, _ in status_options}
+    if pet_ids:
+        return_status_counts = db.session.execute(
+            db.select(Application.return_status, db.func.count(Application.id))
+            .filter(
+                Application.pet_id.in_(pet_ids),
+                Application.return_status.is_not(None),
+            )
+            .group_by(Application.return_status)
+        ).all()
+        counts_by_status = {
+            return_status: count for return_status, count in return_status_counts
+        }
+        status_counts.update({
+            key: counts_by_status.get(key, 0)
+            for key, _ in status_options
+        })
 
     return_requests = []
     returned_applications = []
     if pet_ids:
-        if status in ("open", "all") or status in {
-            ReturnStatus.SUBMITTED.value,
-            ReturnStatus.SHELTER_REVIEW.value,
-            ReturnStatus.SHELTER_CONFIRMED.value,
-            ReturnStatus.RETURN_VISIT.value,
-        }:
+        if status != ReturnStatus.RETURNED_SHELTER.value:
             query = db.select(Application).filter(
                 Application.pet_id.in_(pet_ids),
-                Application.return_status.is_not(None),
-                Application.return_status != ReturnStatus.RETURNED_SHELTER.value,
+                Application.return_status == status,
             )
-            if status not in ("open", "all"):
-                query = query.filter(Application.return_status == status)
             return_requests = db.session.scalars(
                 query.order_by(Application.return_requested_at.desc())
             ).all()
-        if status in ("all", ReturnStatus.RETURNED_SHELTER.value):
+        else:
             returned_applications = db.session.scalars(
                 db.select(Application)
                 .filter(
                     Application.pet_id.in_(pet_ids),
-                    Application.returned_at.is_not(None),
+                    Application.return_status == ReturnStatus.RETURNED_SHELTER.value,
                 )
                 .order_by(Application.returned_at.desc())
             ).all()
@@ -314,6 +323,7 @@ def returns():
         returned_applications=returned_applications,
         status=status,
         status_options=status_options,
+        status_counts=status_counts,
         ReturnStatus=ReturnStatus,
         shelter_name=shelter.name,
         active_nav="returns",
@@ -494,7 +504,15 @@ def return_action(app_id: int):
             flash("Choose a valid date and time for the return visit.", "warning")
             return redirect(url_for("shelter_ops.returns"))
         if visit_at.tzinfo is None:
-            visit_at = visit_at.replace(tzinfo=timezone.utc)
+            try:
+                local_timezone = ZoneInfo(request.form.get("browser_timezone") or "UTC")
+            except ZoneInfoNotFoundError:
+                flash("Could not determine your time zone. Please reload and try again.", "warning")
+                return redirect(url_for("shelter_ops.returns"))
+            visit_at = visit_at.replace(tzinfo=local_timezone).astimezone(timezone.utc)
+            application.return_visit_timezone = local_timezone.key
+        else:
+            application.return_visit_timezone = str(visit_at.tzinfo)
         if visit_at <= datetime.now(timezone.utc):
             flash("Choose a future date and time for the return visit.", "warning")
             return redirect(url_for("shelter_ops.returns"))
@@ -516,7 +534,21 @@ def return_action(app_id: int):
 
     if action == "complete" and application.return_status == ReturnStatus.RETURN_VISIT.value:
         visit_at = application.return_visit_at
-        if visit_at is None or _aware(visit_at) > datetime.now(timezone.utc):
+        if visit_at is None:
+            flash("The return visit can be completed only after its scheduled time.", "warning")
+            return redirect(url_for("shelter_ops.returns"))
+        if application.return_visit_timezone:
+            visit_at_utc = _aware(visit_at)
+        else:
+            try:
+                local_timezone = ZoneInfo(
+                    request.form.get("browser_timezone") or "Asia/Kolkata"
+                )
+            except ZoneInfoNotFoundError:
+                flash("Could not determine your time zone. Please reload and try again.", "warning")
+                return redirect(url_for("shelter_ops.returns"))
+            visit_at_utc = visit_at.replace(tzinfo=local_timezone).astimezone(timezone.utc)
+        if visit_at_utc > datetime.now(timezone.utc):
             flash("The return visit can be completed only after its scheduled time.", "warning")
             return redirect(url_for("shelter_ops.returns"))
         application.mark_returned(datetime.now(timezone.utc))

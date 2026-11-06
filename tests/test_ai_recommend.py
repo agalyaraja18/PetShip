@@ -123,3 +123,18 @@ def test_results_without_profile(client, app):
     # Hitting results with no questionnaire still renders (empty profile).
     resp = client.get("/ai/results")
     assert resp.status_code == 200
+
+
+def test_starting_new_ai_match_clears_previous_answers(client, app):
+    from petship.blueprints.ai import QUIZ_SESSION_KEY
+
+    with client.session_transaction() as browser_session:
+        browser_session[QUIZ_SESSION_KEY] = {"space": "apartment"}
+
+    response = client.get("/ai/quiz/start", follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b"Start a new AI match" not in response.data
+    assert b'class="quiz-option is-selected"' not in response.data
+    with client.session_transaction() as browser_session:
+        assert QUIZ_SESSION_KEY not in browser_session

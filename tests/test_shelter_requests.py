@@ -7,6 +7,7 @@ from petship.extensions import db
 from petship.models.application import Application, ApplicationStage
 from petship.models.application import AdoptionAgreement
 from petship.models.appointment import Appointment, AppointmentKind, AppointmentStatus
+from petship.models.health import OwnedPet
 from petship.models.pet import Pet, PetStatus
 from petship.models.reminder import Notification
 from petship.models.user import User, UserRole
@@ -52,6 +53,8 @@ def test_requests_list_shows_applications(client, app):
     assert resp.status_code == 200
     assert b"Meera J" in resp.data
     assert b"% match" in resp.data
+    assert b"New <span class=\"text-muted\">(1)</span>" in resp.data
+    assert b"In review <span class=\"text-muted\">(0)</span>" in resp.data
 
 
 def test_match_score_rewards_kids(client, app):
@@ -184,7 +187,98 @@ def test_complete_marks_pet_adopted(client, app):
     db.session.refresh(a)
     assert a.stage is ApplicationStage.COMPLETE
     assert a.pet.status is PetStatus.ADOPTED
-    assert a.owned_pet is None
+    assert a.owned_pet is not None
+    assert a.owned_pet.owner_id == a.applicant_id
+    assert a.owned_pet.application_id == a.id
+
+
+def test_shelter_can_reschedule_welcome_home_and_notifies_adopter(client, app):
+    a = _make_application(stage=ApplicationStage.AGREEMENT)
+    original_time = datetime.now(timezone.utc) + timedelta(days=2)
+    pickup = Appointment(
+        application_id=a.id,
+        kind=AppointmentKind.PICKUP,
+        status=AppointmentStatus.CONFIRMED,
+        scheduled_for=original_time,
+        shelter_id=a.pet.shelter_id,
+        user_id=a.applicant_id,
+        pet_id=a.pet_id,
+        location="Old address",
+        adopter_confirmed=True,
+    )
+    db.session.add(pickup)
+    db.session.commit()
+    login_shelter(client)
+
+    detail = client.get(f"/shelter/requests/{a.id}")
+    assert b"Reschedule welcome home" in detail.data
+    assert b"Mark as adopted" in detail.data
+
+    new_time = datetime.now(timezone.utc) + timedelta(days=5)
+    client.post(
+        f"/shelter/requests/{a.id}/action",
+        data={
+            "action": "schedule_welcome_home",
+            "scheduled_for": new_time.isoformat(),
+            "browser_timezone": "UTC",
+            "location": "New address",
+        },
+    )
+    db.session.refresh(pickup)
+    assert pickup.scheduled_for.replace(tzinfo=timezone.utc) == new_time
+    assert pickup.location == "New address"
+    assert pickup.adopter_confirmed is False
+    notice = db.session.scalar(
+        db.select(Notification).filter_by(
+            user_id=a.applicant_id,
+            title="Welcome-home date rescheduled for Bruno",
+        )
+    )
+    assert notice is not None
+    assert "New address" in notice.body
+
+
+def test_mark_as_adopted_adds_pet_to_adopter_pages(client, app):
+    a = _make_application(stage=ApplicationStage.AGREEMENT)
+    pickup = Appointment(
+        application_id=a.id,
+        kind=AppointmentKind.PICKUP,
+        status=AppointmentStatus.CONFIRMED,
+        scheduled_for=datetime.now(timezone.utc) + timedelta(days=2),
+        shelter_id=a.pet.shelter_id,
+        user_id=a.applicant_id,
+        pet_id=a.pet_id,
+    )
+    db.session.add(pickup)
+    db.session.commit()
+    login_shelter(client)
+
+    client.post(
+        f"/shelter/requests/{a.id}/action",
+        data={"action": "complete"},
+    )
+
+    db.session.refresh(a)
+    assert a.stage is ApplicationStage.COMPLETE
+    assert a.pet.status is PetStatus.ADOPTED
+    assert a.adopted_at is not None
+    owned_pet = db.session.scalar(
+        db.select(OwnedPet).filter_by(application_id=a.id)
+    )
+    assert owned_pet is not None
+    assert owned_pet.owner_id == a.applicant_id
+
+    client.get("/auth/logout")
+    client.post(
+        "/auth/login",
+        data={
+            "role": "adopter",
+            "email": "app@example.com",
+            "password": "password123",
+        },
+    )
+    assert b"Bruno" in client.get("/me/pets").data
+    assert b"Bruno" in client.get("/me/adoptions").data
 
 
 def test_cannot_complete_without_signed_agreement(client, app):

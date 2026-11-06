@@ -97,6 +97,7 @@ def test_write_and_show_shelter_review(client, app):
                 data={"rating": "5", "body": "Wonderful, caring staff."})
     resp = client.get(f"/reviews/shelter/{shelter.id}")
     assert resp.status_code == 200
+    assert b"Back to Find Shelters" in resp.data
     assert b"Wonderful, caring staff." in resp.data
     assert b"5.0" in resp.data
 
@@ -207,6 +208,8 @@ def test_adopter_can_report_fake_vet_or_shelter(client, app):
             "details": "Licence details do not match.",
         },
     )
+    assert b"Back to Find Shelters" in client.get(f"/shelter/{shelter.slug}").data
+    assert b"Back to Find Vets" in client.get(f"/vets/{vet.slug}").data
     reports = db.session.scalars(
         db.select(AbuseReport).filter(
             AbuseReport.target_type.in_(

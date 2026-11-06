@@ -5,8 +5,8 @@
 {% block page_subtitle %}{{ scored|length }} requests · sorted by match score{% endblock %}
 {% block content %}
 <div class="row row-wrap mb-4">
-  {% for key, label in [('open','Open'),('submitted','New'),('review','In review'),('home_visit','Home visit'),('complete','Approved'),('declined','Declined'),('all','All')] %}
-    <a class="pill {{ 'is-active' if status == key }}" href="{{ url_for('shelter_requests.index', status=key) }}">{{ label }}</a>
+  {% for key, label in [('new','New'),('review','In review'),('home_visit','Home visit'),('approved','Approved'),('adopted','Adopted'),('declined','Declined')] %}
+    <a class="pill {{ 'is-active' if status == key }}" href="{{ url_for('shelter_requests.index', status=key) }}">{{ label }} <span class="text-muted">({{ status_counts[key] }})</span></a>
   {% endfor %}
 </div>
 
@@ -25,7 +25,13 @@
       </div>
       <div class="row" style="gap: var(--space-4);">
         <span class="match-score">{{ score }}% match</span>
-        {{ badge(application.stage.label, 'primary') }}
+        {% if application.stage.value == 'agreement' %}
+          {{ badge('Approved', 'primary') }}
+        {% elif application.stage.value == 'complete' %}
+          {{ badge('Adopted', 'success') }}
+        {% else %}
+          {{ badge(application.stage.label, 'primary') }}
+        {% endif %}
       </div>
     </a>
   {% else %}

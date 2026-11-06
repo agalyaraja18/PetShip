@@ -5,6 +5,8 @@ in Tasks 15-17.
 """
 from __future__ import annotations
 
+from datetime import date
+
 from flask import (
     Blueprint,
     abort,
@@ -77,6 +79,17 @@ def dashboard():
     pet_ids = [p.id for p in pets]
     recent_requests = []
     new_count = 0
+    returned_count = 0
+    new_return_count = 0
+    recent_return_requests = []
+    current_month = date.today().replace(day=1)
+    months = []
+    for offset in range(5, -1, -1):
+        month_number = current_month.month - offset
+        year = current_month.year + (month_number - 1) // 12
+        month_number = (month_number - 1) % 12 + 1
+        months.append(date(year, month_number, 1))
+    adoption_month_counts = {(month.year, month.month): 0 for month in months}
     if pet_ids:
         recent_requests = db.session.scalars(
             db.select(Application)
@@ -95,19 +108,61 @@ def dashboard():
                 Application.stage == ApplicationStage.SUBMITTED,
             )
         ) or 0
+        returned_count = db.session.scalar(
+            db.select(db.func.count())
+            .select_from(Application)
+            .filter(
+                Application.pet_id.in_(pet_ids),
+                Application.returned_at.is_not(None),
+            )
+        ) or 0
+        new_return_count = db.session.scalar(
+            db.select(db.func.count())
+            .select_from(Application)
+            .filter(
+                Application.pet_id.in_(pet_ids),
+                Application.return_status == "submitted",
+            )
+        ) or 0
+        recent_return_requests = db.session.scalars(
+            db.select(Application)
+            .filter(
+                Application.pet_id.in_(pet_ids),
+                Application.return_status.is_not(None),
+            )
+            .order_by(Application.return_requested_at.desc())
+            .limit(5)
+        ).all()
 
-    # Simple monthly adoptions series for the bar chart (last 6 months buckets).
+        completed_adoptions = db.session.scalars(
+            db.select(Application.adopted_at)
+            .filter(
+                Application.pet_id.in_(pet_ids),
+                Application.adopted_at.is_not(None),
+            )
+        ).all()
+        for adopted_at in completed_adoptions:
+            month_key = (adopted_at.year, adopted_at.month)
+            if month_key in adoption_month_counts:
+                adoption_month_counts[month_key] += 1
+
     stats = {
         "listed": listed,
         "new_requests": new_count,
         "adopted": adopted,
-        "rating": round(shelter.avg_response_hours or 4.8, 1),
+        "returned": returned_count,
+        "new_return_requests": new_return_count,
     }
     return render_template(
         "shelter/dashboard.html",
         shelter=shelter,
         stats=stats,
         recent_requests=recent_requests,
+        recent_return_requests=recent_return_requests,
+        adoption_month_labels=[month.strftime("%b") for month in months],
+        adoption_month_values=[
+            adoption_month_counts[(month.year, month.month)] for month in months
+        ],
         shelter_name=shelter.name,
         active_nav="dashboard",
     )
@@ -153,8 +208,8 @@ def settings():
             current_user.notification_prefs = {
                 **current_user.prefs,
                 "adoption_updates": request.form.get("adoption_updates") == "on",
-                "appointment_updates": request.form.get("appointment_updates") == "on",
-                "health_reminders": request.form.get("health_reminders") == "on",
+                "return_requests": request.form.get("return_requests") == "on",
+                "smart_reminders": request.form.get("smart_reminders") == "on",
             }
         db.session.commit()
         flash("Shelter settings saved.", "success")

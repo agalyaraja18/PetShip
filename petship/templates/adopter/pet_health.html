@@ -76,6 +76,7 @@
     <div class="health-summary-head"><h3>Prescribed medicines - Past</h3><span>{{ past_prescriptions | length }}</span></div>
     {% for prescription in past_prescriptions[:5] %}
       <div class="summary-line">{{ prescription.medicines }}<span class="summary-date">{{ prescription.date.strftime('%d %b %Y') }}</span></div>
+      {% if prescription.instructions %}<div class="prescription-details">{{ prescription.instructions }}</div>{% endif %}
     {% else %}
       <div class="summary-empty">No past prescriptions</div>
     {% endfor %}
@@ -85,6 +86,7 @@
     <div class="health-summary-head"><h3>Prescribed medicines</h3><span>{{ present_prescriptions | length }}</span></div>
     {% for prescription in present_prescriptions[:5] %}
       <div class="summary-line">{{ prescription.medicines }}<span class="summary-date">{{ prescription.date.strftime('%d %b %Y') }}</span></div>
+      {% if prescription.instructions %}<div class="prescription-details">{{ prescription.instructions }}</div>{% endif %}
     {% else %}
       <div class="summary-empty">No medicines prescribed today</div>
     {% endfor %}
@@ -217,6 +219,7 @@
 .health-summary-head { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-border); }
 .health-summary-head + .health-summary-head { margin-top: var(--space-2); }
 .health-summary-head h3 { margin: 0; font-size: 1rem; }
+.prescription-details { white-space:pre-line; color:var(--color-text-muted); font-size:.88rem; line-height:1.5; padding:0 0 var(--space-3); overflow-wrap:anywhere; }
 .health-summary-head > span { min-width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--color-surface-muted); font-weight: 700; }
 .summary-line { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 38px; padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border); font-size: .88rem; }
 .summary-date { color: var(--color-text-muted); font-size: .78rem; white-space: nowrap; }

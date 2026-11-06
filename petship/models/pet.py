@@ -23,7 +23,9 @@ class Species(str, enum.Enum):
     DOG = "dog"
     CAT = "cat"
     RABBIT = "rabbit"
+    HAMSTER = "hamster"
     BIRD = "bird"
+    FISH = "fish"
     OTHER = "other"
 
     @property

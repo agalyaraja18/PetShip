@@ -1,27 +1,33 @@
 {% extends 'layouts/admin.html' %}
+{% from 'partials/macros.html' import badge %}
 {% block title %}Adoption management · {{ APP_NAME }}{% endblock %}
 {% block page_title %}Adoption management{% endblock %}
-{% block page_subtitle %}All platform adoptions by stage · red border means over SLA{% endblock %}
+{% block page_subtitle %}Review applications by stage · red border means over SLA{% endblock %}
 {% block content %}
-<div class="kanban">
-  {% for stage in stages %}
-    <div class="kanban-col">
-      <div class="kanban-head">
-        <span class="fw-600">{{ stage.label }}</span>
-        <span class="badge badge-neutral">{{ board[stage]|length }}</span>
-      </div>
-      <div class="stack">
-        {% for card in board[stage] %}
-          <div class="kanban-card {{ 'over-sla' if card.over_sla }}">
-            <div class="fw-600">{{ card.app.pet.name }}</div>
-            <div class="text-sm text-muted">{{ card.app.applicant.full_name }}</div>
-            <div class="text-sm text-muted">{{ card.app.pet.shelter.name }} · {{ card.app.created_at.strftime('%d %b') }}</div>
-          </div>
-        {% else %}
-          <p class="text-sm text-muted">—</p>
-        {% endfor %}
-      </div>
-    </div>
+<nav class="row row-wrap mb-4" aria-label="Adoption application stages">
+  {% for stage, label in stages %}
+    <a class="pill {{ 'is-active' if selected_stage == stage.value }}"
+       href="{{ url_for('admin_mod.adoptions', stage=stage.value) }}">{{ label }} ({{ counts[stage.value] }})</a>
   {% endfor %}
+</nav>
+<div class="card">
+  <div style="overflow-x: auto;">
+    <table class="data-table">
+      <thead><tr><th>Pet</th><th>Adopter</th><th>Shelter</th><th>Submitted</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for card in cards %}
+          <tr class="{{ 'over-sla' if card.over_sla }}">
+            <td>{{ card.app.pet.name if card.app.pet else 'Pet unavailable' }}</td>
+            <td>{{ card.app.applicant.full_name if card.app.applicant else 'Adopter unavailable' }}</td>
+            <td>{{ card.app.pet.shelter.name if card.app.pet and card.app.pet.shelter else '—' }}</td>
+            <td>{{ card.app.created_at.strftime('%d %b %Y') }}</td>
+            <td>{{ badge(dict(stages)[card.app.stage], 'success' if card.app.stage == card.app.stage.COMPLETE else 'warning') }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5"><p class="text-muted mb-0">No applications in this stage.</p></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endblock %}

@@ -149,6 +149,12 @@ def quiz(step: int = 1):
     )
 
 
+@ai_bp.route("/quiz/start")
+def start_quiz():
+    session.pop(QUIZ_SESSION_KEY, None)
+    return redirect(url_for("ai.quiz", step=1))
+
+
 # ---------------------------------------------------------------------------
 # Pawly AI care chatbot (Task 28)
 # ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 from ..extensions import db
 from ..models.application import Application, ApplicationStage
 from ..models.community import Comment, Post
-from ..models.pet import Pet, PetStatus
+from ..models.pet import Pet, PetStatus, Species
 from ..models.report import AbuseReport, AbuseStatus
 from ..models.review import Review
 from ..models.user import UserRole
@@ -22,23 +22,58 @@ admin_mod_bp = Blueprint("admin_mod", __name__, url_prefix="/admin")
 @role_required(UserRole.ADMIN)
 def listings():
     status = request.args.get("status", "all")
+    if status not in {"all", "available", "draft", "removed", "adopted", "returned"}:
+        status = "all"
+    species = request.args.get("species", "all")
+    if species not in {"all", *[item.value for item in Species]}:
+        species = "all"
     query = db.select(Pet)
-    if status == "draft":
-        query = query.filter_by(status=PetStatus.DRAFT)
-    elif status == "available":
-        query = query.filter_by(status=PetStatus.AVAILABLE)
-    elif status == "removed":
-        query = query.filter_by(status=PetStatus.REMOVED)
+    if status == "returned":
+        query = query.filter(
+            db.select(Application.id)
+            .where(Application.pet_id == Pet.id, Application.returned_at.is_not(None))
+            .exists()
+        )
+    elif status != "all":
+        query = query.filter_by(status=PetStatus(status))
+    if species != "all":
+        query = query.filter_by(species=Species(species))
     pets = db.session.scalars(query.order_by(Pet.created_at.desc())).all()
+    returned_pet_ids = set(db.session.scalars(
+        db.select(Application.pet_id).where(Application.returned_at.is_not(None))
+    ).all())
+
+    def count_listings(listing_status):
+        count_query = db.select(db.func.count()).select_from(Pet)
+        if listing_status == "returned":
+            count_query = count_query.filter(
+                db.select(Application.id)
+                .where(Application.pet_id == Pet.id, Application.returned_at.is_not(None))
+                .exists()
+            )
+        elif listing_status != "all":
+            count_query = count_query.filter_by(status=PetStatus(listing_status))
+        return db.session.scalar(count_query) or 0
+
     counts = {
-        "all": db.session.scalar(db.select(db.func.count()).select_from(Pet)) or 0,
-        "available": db.session.scalar(db.select(db.func.count()).select_from(Pet).filter_by(status=PetStatus.AVAILABLE)) or 0,
-        "draft": db.session.scalar(db.select(db.func.count()).select_from(Pet).filter_by(status=PetStatus.DRAFT)) or 0,
-        "removed": db.session.scalar(db.select(db.func.count()).select_from(Pet).filter_by(status=PetStatus.REMOVED)) or 0,
+        key: count_listings(key)
+        for key in ("all", "available", "draft", "removed", "adopted", "returned")
     }
     return render_template(
         "admin/listings.html", pets=pets, counts=counts, status=status,
-        PetStatus=PetStatus, active_nav="moderation",
+        species=species,
+        species_options=[
+            (Species.DOG, "Dogs"),
+            (Species.CAT, "Cats"),
+            (Species.RABBIT, "Rabbits"),
+            (Species.HAMSTER, "Hamsters"),
+            (Species.BIRD, "Birds"),
+            (Species.FISH, "Fish"),
+            (Species.OTHER, "Others"),
+        ],
+        returned_pet_ids=returned_pet_ids,
+        PetStatus=PetStatus,
+        active_nav="moderation",
     )
 
 
@@ -62,36 +97,48 @@ def listing_action(pet_id: int):
     return redirect(url_for("admin_mod.listings"))
 
 
-# ---- Adoption oversight (kanban) ----
+# ---- Adoption oversight ----
 @admin_mod_bp.route("/adoptions")
 @role_required(UserRole.ADMIN)
 def adoptions():
     stages = [
-        ApplicationStage.SUBMITTED, ApplicationStage.REVIEW,
-        ApplicationStage.CONFIRMED,
-        ApplicationStage.HOME_VISIT, ApplicationStage.AGREEMENT,
-        ApplicationStage.COMPLETE,
+        (ApplicationStage.SUBMITTED, "Application Submitted"),
+        (ApplicationStage.REVIEW, "Application Reviewed"),
+        (ApplicationStage.CONFIRMED, "Application Confirmed"),
+        (ApplicationStage.HOME_VISIT, "Home Visit"),
+        (ApplicationStage.AGREEMENT, "Adoption approved"),
+        (ApplicationStage.COMPLETE, "Welcome home"),
     ]
+    selected_stage = request.args.get("stage", ApplicationStage.SUBMITTED.value)
+    valid_stages = {stage.value for stage, _ in stages}
+    if selected_stage not in valid_stages:
+        selected_stage = ApplicationStage.SUBMITTED.value
+    stage = ApplicationStage(selected_stage)
     now = datetime.now(timezone.utc)
 
-    def _aware(dt):
-        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-    board = {}
-    for stage in stages:
-        apps = db.session.scalars(
-            db.select(Application).filter_by(stage=stage)
-            .order_by(Application.created_at.desc())
-        ).all()
-        # SLA flag: stuck more than 7 days in a non-complete stage.
-        cards = [
-            {"app": a, "over_sla": stage != ApplicationStage.COMPLETE
-             and (now - _aware(a.created_at)) > timedelta(days=7)}
-            for a in apps
-        ]
-        board[stage] = cards
+    apps = db.session.scalars(
+        db.select(Application).filter_by(stage=stage)
+        .order_by(Application.created_at.desc())
+    ).all()
+    counts = {
+        item.value: db.session.scalar(
+            db.select(db.func.count()).select_from(Application).filter_by(stage=item)
+        ) or 0
+        for item, _ in stages
+    }
+    cards = []
+    for application in apps:
+        created_at = application.created_at
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        cards.append({
+            "app": application,
+            "over_sla": stage != ApplicationStage.COMPLETE
+            and (now - created_at) > timedelta(days=7),
+        })
     return render_template(
-        "admin/adoptions.html", board=board, stages=stages, active_nav="adoptions",
+        "admin/adoptions.html", cards=cards, stages=stages, counts=counts,
+        selected_stage=selected_stage, active_nav="adoptions",
     )
 
 

@@ -27,9 +27,9 @@ def test_paths_list(client, app):
     resp = client.get("/lifestyle/learning")
     assert resp.status_code == 200
     assert b"Pet care learning paths" in resp.data
-    assert b"Dog parent" in resp.data
-    assert b"Cat parent" in resp.data
-    assert b"Rabbit bonding" in resp.data
+    assert b"Dog Parent" in resp.data
+    assert b"Cat Parent" in resp.data
+    assert b"Rabbit Bonding" in resp.data
     assert b"Swim with Fish" in resp.data
     paths = db.session.scalars(db.select(LearningPath)).all()
     assert resp.data.count(b'class="learning-cover"') == len(paths)
@@ -53,12 +53,12 @@ def test_swim_with_fish_path_and_lesson_image(client, app):
         db.select(LearningPath).filter_by(slug="swim-with-fish")
     )
     assert path is not None
-    assert len(path.lessons) == 5
+    assert len(path.lessons) == 7
     assert all(lesson.title in LESSON_PRACTICES[path.slug] for lesson in path.lessons)
 
     detail = client.get("/lifestyle/learning/swim-with-fish")
     assert detail.status_code == 200
-    assert b"Setting up a safe aquarium" in detail.data
+    assert b"Understanding Aquarium Fish" in detail.data
 
     lesson_page = client.get(
         f"/lifestyle/learning/lesson/{path.lessons[0].id}"
@@ -72,20 +72,20 @@ def test_path_detail_lists_lessons(client, app):
     login_agalya(client)
     resp = client.get("/lifestyle/learning/dog-parent")
     assert resp.status_code == 200
-    assert b"House training basics" in resp.data
+    assert b"House Training Basics" in resp.data
     assert b"Your progress" in resp.data
-    assert b"same toilet area" in resp.data
+    assert b"House training teaches your dog" in resp.data
 
 
 def test_lesson_content_teaches_its_topic(client, app):
     login_agalya(client)
     lesson = db.session.scalar(
-        db.select(Lesson).filter_by(title="House training basics")
+        db.select(Lesson).filter_by(title="House Training Basics")
     )
     resp = client.get(f"/lifestyle/learning/lesson/{lesson.id}")
     assert resp.status_code == 200
-    assert b"after waking, eating, playing" in resp.data
-    assert b"Reward toileting outdoors" in resp.data
+    assert b"after waking" in resp.data
+    assert b"Never punish" in resp.data
     assert b"Keep a simple note" not in resp.data
 
 
@@ -101,7 +101,7 @@ def test_every_seeded_lesson_has_topic_specific_guidance(client, app):
 def test_duplicate_lesson_is_hidden_and_redirected(client, app):
     login_agalya(client)
     path = a_path()
-    original = next(le for le in path.lessons if le.title == "House training basics")
+    original = next(le for le in path.lessons if le.title == "House Training Basics")
     duplicate = Lesson(
         path_id=path.id,
         position=99,
@@ -112,7 +112,7 @@ def test_duplicate_lesson_is_hidden_and_redirected(client, app):
     db.session.commit()
 
     page = client.get(f"/lifestyle/learning/{path.slug}")
-    assert page.data.count(b"House training basics") == 1
+    assert page.data.count(b"House Training Basics") == 1
     response = client.get(f"/lifestyle/learning/lesson/{duplicate.id}")
     assert response.status_code == 302
     assert response.headers["Location"].endswith(

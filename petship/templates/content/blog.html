@@ -24,8 +24,11 @@
 <div class="blog-grid mt-5">
   {% for post in posts %}
     <a class="blog-card card card-flush" href="{{ url_for('content.blog_post', slug=post.slug) }}">
-      <div class="blog-cover" data-cat="{{ post.category }}"
-           {% if post.cover_url %}style="background-image:url('{{ post.cover_url }}')"{% endif %}></div>
+      {% if post.cover_url %}
+        <img class="blog-cover-image" src="{{ post.cover_url }}" alt="{{ post.title }}">
+      {% else %}
+        <div class="blog-cover" data-cat="{{ post.category }}"></div>
+      {% endif %}
       <div class="blog-card-body">
         {{ tag(post.category) }}
         <h3 class="mt-4 mb-0">{{ post.title }}</h3>

@@ -5,6 +5,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/pets.css') }}">
 {% endblock %}
 {% block content %}
+<a class="btn btn-outline mb-4" href="{{ url_for('shelter.directory') }}">&larr; Back to Find Shelters</a>
 <div class="shelter-public-head card">
   <div class="shelter-logo shelter-logo-lg">{{ shelter.name[:2]|upper }}</div>
   <div class="shelter-public-id">

@@ -53,6 +53,22 @@ def _generate_reference() -> str:
 
 
 def _get_or_create_draft(pet: Pet) -> Application:
+    active_app = db.session.scalar(
+        db.select(Application)
+        .filter(
+            Application.applicant_id == current_user.id,
+            Application.pet_id == pet.id,
+            Application.returned_at.is_(None),
+            Application.stage.notin_([
+                ApplicationStage.DRAFT,
+                ApplicationStage.COMPLETE,
+                ApplicationStage.DECLINED,
+            ]),
+        )
+        .order_by(Application.updated_at.desc(), Application.created_at.desc())
+    )
+    if active_app is not None:
+        return active_app
     app_row = db.session.scalar(
         db.select(Application).filter_by(
             applicant_id=current_user.id,
@@ -80,8 +96,10 @@ def start(pet_id: int):
     pet = db.session.get(Pet, pet_id)
     if pet is None or pet.status not in (PetStatus.AVAILABLE, PetStatus.RESERVED):
         abort(404)
-    draft = _get_or_create_draft(pet)
-    return redirect(url_for("adoption.wizard", app_id=draft.id, step=draft.step))
+    app_row = _get_or_create_draft(pet)
+    if app_row.stage == ApplicationStage.DRAFT:
+        return redirect(url_for("adoption.wizard", app_id=app_row.id, step=app_row.step))
+    return redirect(url_for("adoption.track", app_id=app_row.id))
 
 
 @adoption_bp.route("/application/<int:app_id>/step/<int:step>", methods=["GET", "POST"])
@@ -99,10 +117,18 @@ def wizard(app_id: int, step: int):
         action = request.form.get("action", "next")
         # Persist this step's fields into the JSON answers (draft autosave).
         answers = dict(app_row.answers or {})
-        for key, value in request.form.items():
+        if step == 2:
+            answers.pop("other_pets", None)
+        for key in request.form.keys():
             if key == "csrf_token" or key == "action":
                 continue
-            answers[key] = value
+            values = request.form.getlist(key)
+            if key == "other_pets":
+                answers[key] = ", ".join(values)
+            elif len(values) == 1:
+                answers[key] = values[0]
+            else:
+                answers[key] = values
         if step == 1 and action == "next" and not all(
             (answers.get(key) or "").strip()
             for key in ("applicant_name", "applicant_phone", "applicant_address")
@@ -180,6 +206,8 @@ def wizard(app_id: int, step: int):
 @adoption_bp.route("/application/<int:app_id>")
 @login_required
 def track(app_id: int):
+    from ..services.scheduler import run_due_reminders
+    run_due_reminders(current_app._get_current_object())
     app_row = db.session.get(Application, app_id)
     if app_row is None or app_row.applicant_id != current_user.id:
         abort(404)
@@ -189,15 +217,75 @@ def track(app_id: int):
         .filter(Appointment.status != AppointmentStatus.CANCELLED)
         .order_by(Appointment.scheduled_for.desc())
     )
+    welcome_home = db.session.scalar(
+        db.select(Appointment)
+        .filter_by(application_id=app_row.id, kind=AppointmentKind.PICKUP)
+        .filter(Appointment.status != AppointmentStatus.CANCELLED)
+        .order_by(Appointment.scheduled_for.desc())
+    )
     return render_template(
         "adoption/track.html",
         app_row=app_row,
         pet=app_row.pet,
         appointment=appointment,
+        welcome_home=welcome_home,
         shelter_user_id=app_row.pet.shelter.owner_id,
         timeline=TIMELINE_STAGES,
         active_nav="applications",
     )
+
+
+@adoption_bp.route("/application/<int:app_id>/cancel", methods=["POST"])
+@login_required
+def cancel_application(app_id: int):
+    app_row = db.session.get(Application, app_id)
+    if app_row is None or app_row.applicant_id != current_user.id:
+        abort(404)
+    if app_row.stage in (
+        ApplicationStage.DRAFT,
+        ApplicationStage.COMPLETE,
+        ApplicationStage.DECLINED,
+    ):
+        flash("This adoption application can no longer be cancelled.", "warning")
+        return redirect(url_for("adopter.adoptions", tab="cancelled"))
+
+    app_row.stage = ApplicationStage.DECLINED
+    app_row.applicant_cancelled = True
+
+    linked_appointments = db.session.scalars(
+        db.select(Appointment)
+        .filter_by(application_id=app_row.id)
+        .filter(Appointment.status != AppointmentStatus.CANCELLED)
+    ).all()
+    for appointment in linked_appointments:
+        appointment.status = AppointmentStatus.CANCELLED
+
+    if app_row.pet.status == PetStatus.RESERVED:
+        app_row.pet.publish()
+
+    db.session.commit()
+
+    from ..services.notify import notify
+
+    notify(
+        current_user,
+        title=f"Adoption cancelled for {app_row.pet.name}",
+        body=f"Application {app_row.reference} was cancelled by you.",
+        category="adoption",
+        link=url_for("adopter.adoptions", tab="cancelled"),
+    )
+    if app_row.pet.shelter.owner:
+        notify(
+            app_row.pet.shelter.owner,
+            title=f"Adoption cancelled for {app_row.pet.name}",
+            body=f"{current_user.full_name} cancelled application {app_row.reference}.",
+            category="adoption",
+            link=url_for("shelter_requests.detail", app_id=app_row.id),
+        )
+    db.session.commit()
+
+    flash(f"Adoption cancelled for {app_row.pet.name}.", "success")
+    return redirect(url_for("adopter.adoptions", tab="cancelled"))
 
 
 @adoption_bp.route("/application/<int:app_id>/visit/reschedule", methods=["POST"])
@@ -461,5 +549,5 @@ def my_applications():
         .order_by(Application.created_at.desc())
     ).all()
     return render_template(
-        "adoption/list.html", applications=apps, active_nav="applications"
+        "adoption/list.html", applications=apps, active_nav="adoptions"
     )

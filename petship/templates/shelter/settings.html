@@ -46,9 +46,9 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="section" value="notifications">
         {% for key, label, description in [
-          ('adoption_updates', 'Adoption requests and status updates', 'New applications and adopter activity'),
-          ('appointment_updates', 'Appointments and home visits', 'Scheduled visits, reschedule requests, and reminders'),
-          ('health_reminders', 'Care reminders', 'Other pet care and health reminders')
+          ('adoption_updates', 'Adoption requests', 'New adoption applications and adopter activity'),
+          ('return_requests', 'Return requests', 'Pet return requests and collection updates'),
+          ('smart_reminders', 'Smart reminders', 'Custom tasks and scheduled care reminders')
         ] %}
           <div class="row spread toggle-row">
             <div><div class="fw-600">{{ label }}</div><div class="text-sm text-muted">{{ description }}</div></div>

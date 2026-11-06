@@ -1,0 +1,179 @@
+{% extends 'layouts/adopter.html' %}
+{% from 'partials/macros.html' import badge %}
+{% block title %}Adoptions · {{ APP_NAME }}{% endblock %}
+{% block page_title %}Adoptions{% endblock %}
+{% block page_subtitle %}Track adoption applications, adopted pets, and completed returns.{% endblock %}
+{% block content %}
+<div class="row spread row-wrap mb-5">
+  <div></div>
+  <a class="btn btn-primary" href="{{ url_for('pets.browse') }}">Adopt a pet</a>
+</div>
+<nav class="row row-wrap mb-5" aria-label="Adoption views">
+  <a class="pill {{ 'is-active' if tab == 'applications' }}"
+     href="{{ url_for('adopter.adoptions', tab='applications') }}">
+    Applications{% if active_applications %} ({{ active_applications|length }}){% endif %}
+  </a>
+  <a class="pill {{ 'is-active' if tab == 'adopted' }}"
+     href="{{ url_for('adopter.adoptions', tab='adopted') }}">Adopted Pet</a>
+  <a class="pill {{ 'is-active' if tab == 'returns' }}"
+     href="{{ url_for('adopter.adoptions', tab='returns') }}"
+     {% if tab == 'returns' %}aria-current="page"{% endif %}>Return Pet</a>
+  <a class="pill {{ 'is-active' if tab == 'declined' }}"
+     href="{{ url_for('adopter.adoptions', tab='declined') }}">Declined{% if declined_applications %} ({{ declined_applications|length }}){% endif %}</a>
+  <a class="pill {{ 'is-active' if tab == 'cancelled' }}"
+     href="{{ url_for('adopter.adoptions', tab='cancelled') }}">Cancelled{% if cancelled_applications %} ({{ cancelled_applications|length }}){% endif %}</a>
+</nav>
+
+{% if tab == 'applications' %}
+  <div class="stack">
+    {% for application in active_applications %}
+      <section class="card">
+        <div class="row spread row-wrap">
+          <div>
+            <h2 class="h3 mb-0">{{ application.pet.name }}</h2>
+            <div class="text-sm text-muted">
+              {{ application.reference }} · {{ application.pet.shelter.name }}
+            </div>
+          </div>
+          <div class="row row-wrap" style="gap: var(--space-2);">
+            {{ badge(application.stage.label, 'warning' if application.stage.value != 'agreement' else 'primary') }}
+            <a class="btn btn-outline btn-sm" href="{{ url_for('adoption.track', app_id=application.id) }}">View status</a>
+          </div>
+        </div>
+      </section>
+    {% else %}
+      <div class="card text-center">
+        <p class="text-muted mb-0">You have no active adoption applications.</p>
+        <a class="btn btn-outline btn-sm mt-4" href="{{ url_for('pets.browse') }}">Browse pets</a>
+      </div>
+    {% endfor %}
+  </div>
+{% elif tab == 'adopted' %}
+  <div class="stack">
+    {% for pet in legacy_owned_adoptions %}
+      <section class="card">
+        <div class="row spread row-wrap">
+          <div>
+            <h2 class="h3 mb-0">{{ pet.name }}</h2>
+            <div class="text-sm text-muted">
+              Adopted {{ pet.adopted_on.strftime('%d %b %Y') if pet.adopted_on else 'date unavailable' }}
+            </div>
+          </div>
+          {{ badge('Adoption complete', 'success') }}
+        </div>
+      </section>
+    {% endfor %}
+    {% for application in adopted_applications %}
+      <section class="card">
+        <div class="row spread row-wrap">
+          <div>
+            <h2 class="h3 mb-0">{{ application.pet.name }}</h2>
+            <div class="text-sm text-muted">
+              Adopted {{ application.adopted_at.strftime('%d %b %Y') if application.adopted_at else 'date unavailable' }}
+              · {{ application.pet.shelter.name }}
+            </div>
+          </div>
+          <div class="row row-wrap" style="gap: var(--space-2);">
+            {{ badge('Adoption complete', 'success') }}
+            {% if application.id in returnable_app_ids %}
+              <details id="return-{{ application.id }}">
+                <summary class="btn btn-outline btn-sm">Return this Pet</summary>
+                <form method="post" action="{{ url_for('adopter.return_adopted_pet', app_id=application.id) }}" class="mt-4">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <label for="return-reason-{{ application.id }}">Reason for return</label>
+                  <textarea class="textarea" id="return-reason-{{ application.id }}" name="reason" maxlength="1000" required rows="6"></textarea>
+                  <button class="btn btn-danger btn-sm mt-4" type="submit">Submit return request</button>
+                </form>
+              </details>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+    {% endfor %}
+    {% if not legacy_owned_adoptions and not adopted_applications %}
+      <div class="card text-center">
+        <p class="text-muted mb-0">You have no adopted pets yet.</p>
+      </div>
+    {% endif %}
+  </div>
+{% elif tab == 'returns' %}
+  <div class="stack">
+    {% for application in returned_applications %}
+      <section class="card">
+        <div class="row spread row-wrap">
+          <div>
+            <h2 class="h3 mb-0">{{ application.pet.name }}</h2>
+            <div class="text-sm text-muted">
+              Adopted {{ application.adopted_at.strftime('%d %b %Y') if application.adopted_at else 'date unavailable' }}
+            </div>
+            <div class="text-sm text-muted">
+              Returned {{ application.returned_at.strftime('%d %b %Y') }}
+            </div>
+          </div>
+          {{ badge('Return completed', 'danger') }}
+        </div>
+        {% if application.return_reason %}
+          <p class="text-sm text-muted mb-0 mt-4">Reason for return: {{ application.return_reason }}</p>
+        {% endif %}
+      </section>
+    {% else %}
+      <div class="card text-center">
+        <p class="text-muted mb-0">You have no completed returns.</p>
+        <a class="btn btn-outline btn-sm mt-4" href="{{ url_for('adopter.adoptions', tab='adopted') }}">View adopted pets</a>
+      </div>
+    {% endfor %}
+  </div>
+{% elif tab == 'declined' %}
+  <div class="stack">
+    {% for application in declined_applications %}
+      <section class="card">
+        <div class="row spread row-wrap">
+          <div>
+            <h2 class="h3 mb-0">{{ application.pet.name }}</h2>
+            <div class="text-sm text-muted">
+              {{ application.reference }} · {{ application.pet.shelter.name }}
+            </div>
+            <div class="text-sm text-muted">
+              Updated {{ application.updated_at.strftime('%d %b %Y') }}
+            </div>
+          </div>
+          <div class="row row-wrap" style="gap: var(--space-2);">
+            {{ badge('Declined', 'danger') }}
+            <a class="btn btn-outline btn-sm" href="{{ url_for('adoption.track', app_id=application.id) }}">View details</a>
+          </div>
+        </div>
+      </section>
+    {% else %}
+      <div class="card text-center">
+        <p class="text-muted mb-0">You have no declined adoption applications.</p>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="stack">
+    {% for application in cancelled_applications %}
+      <section class="card">
+        <div class="row spread row-wrap">
+          <div>
+            <h2 class="h3 mb-0">{{ application.pet.name }}</h2>
+            <div class="text-sm text-muted">
+              {{ application.reference }} · {{ application.pet.shelter.name }}
+            </div>
+            <div class="text-sm text-muted">
+              Cancelled {{ application.updated_at.strftime('%d %b %Y') }}
+            </div>
+          </div>
+          <div class="row row-wrap" style="gap: var(--space-2);">
+            {{ badge('Cancelled', 'warning') }}
+            <a class="btn btn-outline btn-sm" href="{{ url_for('adoption.track', app_id=application.id) }}">View details</a>
+          </div>
+        </div>
+      </section>
+    {% else %}
+      <div class="card text-center">
+        <p class="text-muted mb-0">You have no cancelled adoption applications.</p>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

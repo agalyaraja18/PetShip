@@ -74,6 +74,13 @@
 </form>
 
 <script>
+  window.addEventListener('pageshow', function () {
+    if (sessionStorage.getItem('petship-vet-booking-completed') === '1') {
+      sessionStorage.removeItem('petship-vet-booking-completed');
+      window.location.replace("{{ url_for('adopter.appointments') }}");
+    }
+  });
+
   function booking() {
     const prices = JSON.parse(document.getElementById('booking-prices').textContent);
     const baseFee = {{ vet.consult_fee|int if vet.consult_fee else 500 }};

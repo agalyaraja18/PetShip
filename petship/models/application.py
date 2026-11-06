@@ -4,7 +4,7 @@ from __future__ import annotations
 import enum
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..extensions import db
@@ -31,7 +31,7 @@ class ApplicationStage(str, enum.Enum):
             "review": "Application review",
             "confirmed": "Application confirmed",
             "home_visit": "Home visit",
-            "agreement": "Adoption agreement",
+            "agreement": "Adoption approved",
             "complete": "Welcome home",
             "declined": "Declined",
         }[self.value]
@@ -48,10 +48,10 @@ class ReturnStatus(str, enum.Enum):
     def label(self) -> str:
         return {
             "submitted": "Return submitted",
-            "shelter_review": "Shelter review",
-            "shelter_confirmed": "Shelter confirmed",
-            "return_visit": "Return visit",
-            "returned_shelter": "Returned shelter",
+            "shelter_review": "Return review",
+            "shelter_confirmed": "Return confirmed",
+            "return_visit": "Pet pickup",
+            "returned_shelter": "Return completed",
         }[self.value]
 
 
@@ -85,6 +85,9 @@ class Application(TimestampMixin, db.Model):
         nullable=False,
         index=True,
     )
+    applicant_cancelled: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
     # Wizard answers kept as JSON so the form can evolve without migrations.
     answers: Mapped[dict | None] = mapped_column(JSON, default=dict)
     # Highest wizard step reached (for resuming drafts): 1..4.
@@ -104,6 +107,9 @@ class Application(TimestampMixin, db.Model):
     )
     return_visit_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+    return_visit_timezone: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
     )
 
     applicant = relationship("User", backref="applications")
@@ -146,6 +152,8 @@ class Application(TimestampMixin, db.Model):
         self.return_status = ReturnStatus.RETURNED_SHELTER.value
         self.returned_at = returned_at
         self.pet.publish()
+        if self.owned_pet is not None:
+            db.session.delete(self.owned_pet)
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Application {self.reference} {self.stage.value}>"

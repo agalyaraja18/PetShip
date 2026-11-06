@@ -16,6 +16,7 @@
     <h1 class="mt-4">You're a <span class="text-primary">"{{ result.name }}"</span></h1>
     <p class="text-muted">{{ result.description }}</p>
     <a class="btn btn-primary btn-lg" href="{{ url_for('ai.results') }}">See matching pets</a>
+    <a class="btn btn-outline mt-3" href="{{ url_for('ai.start_quiz') }}">&larr; Start a new AI match</a>
   </div>
 
   <div class="stack">

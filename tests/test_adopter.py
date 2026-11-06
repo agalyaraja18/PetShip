@@ -36,9 +36,87 @@ def test_dashboard_renders_with_stats(client, app):
     assert resp.status_code == 200
     assert b"Good day, Agalya" in resp.data
     assert b"My pets" in resp.data
+    assert b"Active Applications" in resp.data
+    assert b"Active appointments" in resp.data
+    assert b"Today" in resp.data
     # Agalya owns Mochi and Snowball (2 pets).
     assert b"Mochi" in resp.data
     assert b'href="/me/appointments"' in resp.data
+
+
+def test_dashboard_shows_all_active_application_statuses(client, app):
+    login_agalya(client)
+    user = db.session.scalar(db.select(User).filter_by(email="agalya@demo.petship"))
+    bruno = db.session.scalar(db.select(Pet).filter_by(name="Bruno"))
+    daisy = db.session.scalar(db.select(Pet).filter_by(name="Daisy"))
+    db.session.add_all([
+        Application(
+            reference="PS-DASH-BRUNO",
+            applicant_id=user.id,
+            pet_id=bruno.id,
+            stage=ApplicationStage.SUBMITTED,
+        ),
+        Application(
+            reference="PS-DASH-DAISY",
+            applicant_id=user.id,
+            pet_id=daisy.id,
+            stage=ApplicationStage.HOME_VISIT,
+        ),
+    ])
+    db.session.commit()
+
+    response = client.get("/me/dashboard")
+    assert response.status_code == 200
+    assert b"Adoption application status" in response.data
+    assert b"Bruno" in response.data
+    assert b"Application submitted" in response.data
+    assert b"Daisy" in response.data
+    assert b"Home visit" in response.data
+    assert b"Adoption application status" in response.data
+    assert b"Return application status" in response.data
+
+
+def test_dashboard_shows_only_active_adoption_and_return_applications(client, app):
+    login_agalya(client)
+    user = db.session.scalar(db.select(User).filter_by(email="agalya@demo.petship"))
+    bruno = db.session.scalar(db.select(Pet).filter_by(name="Bruno"))
+    daisy = db.session.scalar(db.select(Pet).filter_by(name="Daisy"))
+    coco = db.session.scalar(db.select(Pet).filter_by(name="Coco"))
+    db.session.add_all([
+        Application(
+            reference="PS-DASH-ACTIVE-ADOPTION",
+            applicant_id=user.id,
+            pet_id=bruno.id,
+            stage=ApplicationStage.REVIEW,
+        ),
+        Application(
+            reference="PS-DASH-COMPLETED-ADOPTION",
+            applicant_id=user.id,
+            pet_id=daisy.id,
+            stage=ApplicationStage.COMPLETE,
+            adopted_at=datetime.now(timezone.utc) - timedelta(days=40),
+        ),
+        Application(
+            reference="PS-DASH-ACTIVE-RETURN",
+            applicant_id=user.id,
+            pet_id=coco.id,
+            stage=ApplicationStage.COMPLETE,
+            adopted_at=datetime.now(timezone.utc) - timedelta(days=5),
+            return_status=ReturnStatus.RETURN_VISIT.value,
+            return_requested_at=datetime.now(timezone.utc) - timedelta(days=1),
+            return_reason="Needs extra care.",
+        ),
+    ])
+    db.session.commit()
+
+    response = client.get("/me/dashboard")
+
+    assert response.status_code == 200
+    assert b"PS-DASH-ACTIVE-ADOPTION" in response.data
+    assert b"Coco" in response.data
+    assert b"Pet pickup" in response.data
+    assert b"Needs extra care." in response.data
+    assert b"PS-DASH-COMPLETED-ADOPTION" not in response.data
 
 
 def test_adopter_can_view_and_cancel_vet_appointments(client, app):
@@ -103,6 +181,35 @@ def test_dashboard_monthly_spend_uses_expense_items(client, app):
     assert "\u20b95,200" in response.data.decode()
 
 
+def test_dashboard_shows_only_todays_active_appointments(client, app):
+    login_agalya(client)
+    user = db.session.scalar(db.select(User).filter_by(email="agalya@demo.petship"))
+    now = datetime.now().astimezone()
+    today_appointment = Appointment(
+        kind=AppointmentKind.VET_VISIT,
+        status=AppointmentStatus.CONFIRMED,
+        scheduled_for=(now + timedelta(minutes=10)).astimezone(timezone.utc),
+        user_id=user.id,
+        service="Today checkup",
+    )
+    tomorrow_appointment = Appointment(
+        kind=AppointmentKind.VET_VISIT,
+        status=AppointmentStatus.PENDING,
+        scheduled_for=(now + timedelta(days=1)).astimezone(timezone.utc),
+        user_id=user.id,
+        service="Tomorrow checkup",
+    )
+    db.session.add_all([today_appointment, tomorrow_appointment])
+    db.session.commit()
+
+    response = client.get("/me/dashboard")
+
+    assert response.status_code == 200
+    assert b"Today checkup" in response.data
+    assert b"Tomorrow checkup" not in response.data
+    assert b"Active appointments" in response.data
+
+
 def test_my_pets_lists_owned(client, app):
     login_agalya(client)
     resp = client.get("/me/pets")
@@ -126,7 +233,118 @@ def test_my_pets_counts_unique_vaccines(client, app):
     assert pet.unique_vaccination_count == 4
 
 
-def test_return_page_filters_by_return_status(client, app):
+def test_adoptions_lists_owned_adoption_without_application(client, app):
+    login_agalya(client)
+    user = db.session.scalar(db.select(User).filter_by(email="agalya@demo.petship"))
+    db.session.add(OwnedPet(
+        owner_id=user.id,
+        name="Lucky",
+        species="Dog",
+        adopted_on=datetime.now(timezone.utc).date(),
+    ))
+    db.session.commit()
+
+    response = client.get("/me/adoptions?tab=adopted")
+    assert response.status_code == 200
+    assert b"Lucky" in response.data
+    assert b"Adoption complete" in response.data
+
+
+def test_adoptions_lists_adoption_with_adopted_date(client, app):
+    login_agalya(client)
+    user = db.session.scalar(db.select(User).filter_by(email="agalya@demo.petship"))
+    pet = db.session.scalar(db.select(Pet).limit(1))
+    application = Application(
+        reference="PS-84002",
+        applicant_id=user.id,
+        pet_id=pet.id,
+        stage=ApplicationStage.AGREEMENT,
+        adopted_at=datetime.now(timezone.utc) - timedelta(days=2),
+    )
+    db.session.add(application)
+    db.session.commit()
+
+    response = client.get("/me/adoptions?tab=adopted")
+    assert response.status_code == 200
+    assert pet.name.encode() in response.data
+    assert b"Adoption complete" in response.data
+
+
+def test_adoptions_list_does_not_show_in_progress_applications(client, app):
+    login_agalya(client)
+    user = db.session.scalar(db.select(User).filter_by(email="agalya@demo.petship"))
+    bruno = db.session.scalar(db.select(Pet).filter_by(name="Bruno"))
+    db.session.add(Application(
+        reference="PS-BRUNO-PROGRESS",
+        applicant_id=user.id,
+        pet_id=bruno.id,
+        stage=ApplicationStage.SUBMITTED,
+    ))
+    db.session.commit()
+
+    response = client.get("/me/adoptions?tab=adopted")
+    assert response.status_code == 200
+    assert b"Bruno" not in response.data
+    assert b"Application submitted" not in response.data
+
+    applications_page = client.get("/me/adoptions?tab=applications")
+    assert applications_page.status_code == 200
+    assert b"Bruno" in applications_page.data
+    assert b"Application submitted" in applications_page.data
+
+
+def test_adoptions_defaults_to_active_applications_when_present(client, app):
+    login_agalya(client)
+    user = db.session.scalar(db.select(User).filter_by(email="agalya@demo.petship"))
+    pet = db.session.scalar(db.select(Pet).limit(1))
+    db.session.add(Application(
+        reference="PS-NEMO-ACTIVE",
+        applicant_id=user.id,
+        pet_id=pet.id,
+        stage=ApplicationStage.SUBMITTED,
+    ))
+    db.session.commit()
+
+    response = client.get("/me/adoptions")
+
+    assert response.status_code == 200
+    assert pet.name.encode() in response.data
+    assert b"Application submitted" in response.data
+    assert b"View status" in response.data
+
+
+def test_adoptions_separates_declined_and_cancelled_applications(client, app):
+    login_agalya(client)
+    user = db.session.scalar(db.select(User).filter_by(email="agalya@demo.petship"))
+    pets = db.session.scalars(db.select(Pet).limit(2)).all()
+    declined_pet, cancelled_pet = pets
+    db.session.add_all([
+        Application(
+            reference="PS-SHELTER-DECLINED",
+            applicant_id=user.id,
+            pet_id=declined_pet.id,
+            stage=ApplicationStage.DECLINED,
+        ),
+        Application(
+            reference="PS-ADOPTER-CANCELLED",
+            applicant_id=user.id,
+            pet_id=cancelled_pet.id,
+            stage=ApplicationStage.DECLINED,
+            applicant_cancelled=True,
+        ),
+    ])
+    db.session.commit()
+
+    declined_response = client.get("/me/adoptions?tab=declined")
+    cancelled_response = client.get("/me/adoptions?tab=cancelled")
+
+    assert declined_pet.name.encode() in declined_response.data
+    assert cancelled_pet.name.encode() not in declined_response.data
+    assert cancelled_pet.name.encode() in cancelled_response.data
+    assert declined_pet.name.encode() not in cancelled_response.data
+
+
+def test_return_list_shows_only_completed_returns(client, app):
     login_agalya(client)
     user = db.session.scalar(db.select(User).filter_by(email="agalya@demo.petship"))
     pet = db.session.scalar(db.select(Pet).limit(1))
@@ -143,11 +361,25 @@ def test_return_page_filters_by_return_status(client, app):
     db.session.commit()
 
     response = client.get("/me/returns?status=submitted")
-    assert response.status_code == 200
-    assert b"Return submitted" in response.data
-    assert b"Needs extra support." in response.data
-    assert b"aria-current=\"page\"" in response.data
-    assert b"Needs extra support." not in client.get("/me/returns?status=return_visit").data
+    assert response.status_code == 302
+    assert b"Needs extra support." not in client.get(
+        "/me/adoptions?tab=returns"
+    ).data
+
+    application.return_status = ReturnStatus.RETURNED_SHELTER.value
+    application.returned_at = datetime.now(timezone.utc)
+    db.session.commit()
+    response = client.get("/me/returns")
+    assert response.status_code == 302
+    completed_returns = client.get("/me/adoptions?tab=returns")
+    assert pet.name.encode() in completed_returns.data
+    assert b"Adopted" in completed_returns.data
+    assert b"Returned" in completed_returns.data
+    assert b"Return completed" in completed_returns.data
+    assert b"Needs extra support." in completed_returns.data
+    assert b"Return submitted" not in completed_returns.data
+    assert b"Return review" not in completed_returns.data
+    assert b"Return confirmed" not in completed_returns.data
 
 
 def test_add_pet(client, app):

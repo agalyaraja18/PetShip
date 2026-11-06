@@ -25,7 +25,7 @@ from ..models.application import Application, ApplicationStage
 from ..models.pet import Pet, PetStatus, Species
 from ..models.report import AbuseReport, AbuseStatus
 from ..models.shelter import Shelter
-from ..models.content import ContactMessage
+from ..models.content import BlogPost, ContactMessage, SuccessStory
 from ..models.platform import PlatformFeedback, PlatformMetricEvent
 from ..models.lostfound import LostFoundReport, ReportKind, ReportStatus
 from ..models.reminder import Notification
@@ -62,6 +62,7 @@ def _count(model, **filters) -> int:
 def dashboard():
     stats = {
         "users": _count(User),
+        "adopters": _count(User, role=UserRole.ADOPTER),
         "shelters": _count(Shelter),
         "vets": _count(VetProfile),
         "adoptions": _count(Application, stage=ApplicationStage.COMPLETE),
@@ -86,9 +87,7 @@ def dashboard():
         )
     ) or 0
 
-    # Verification queue preview (mix of shelters and vets awaiting review).
-    queue = []
-    for s in db.session.scalars(
+    shelter_queue = db.session.scalars(
         db.select(Shelter)
         .where(
             Shelter.is_verified.is_(False),
@@ -96,10 +95,9 @@ def dashboard():
             Shelter.owner.has(User.registration_status == "pending"),
         )
         .order_by(Shelter.created_at, Shelter.id)
-        .limit(3)
-    ).all():
-        queue.append({"type": "shelter", "id": s.id, "name": s.name})
-    for v in db.session.scalars(
+        .limit(5)
+    ).all()
+    vet_queue = db.session.scalars(
         db.select(VetProfile)
         .join(User, VetProfile.user_id == User.id)
         .where(
@@ -107,16 +105,65 @@ def dashboard():
             User.registration_status == "pending",
         )
         .order_by(VetProfile.created_at, VetProfile.id)
-        .limit(3)
+        .limit(5)
+    ).all()
+
+    month_start = datetime.now(timezone.utc).date().replace(day=1)
+    for _ in range(5):
+        month_start = (month_start - timedelta(days=1)).replace(day=1)
+    labels = []
+    month_dates = []
+    cursor = month_start
+    for _ in range(6):
+        labels.append(cursor.strftime("%b %Y"))
+        month_dates.append(cursor)
+        cursor = (cursor.replace(day=28) + timedelta(days=4)).replace(day=1)
+    adoption_series = [0] * 6
+    usage_series = [0] * 6
+
+    def month_index(value):
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        month = value.astimezone(timezone.utc).date().replace(day=1)
+        try:
+            return month_dates.index(month)
+        except ValueError:
+            return None
+
+    for adopted_at, updated_at in db.session.execute(
+        db.select(Application.adopted_at, Application.updated_at)
+        .filter_by(stage=ApplicationStage.COMPLETE)
     ).all():
-        queue.append({"type": "vet", "id": v.id, "name": v.display_name})
+        index = month_index(adopted_at or updated_at)
+        if index is not None:
+            adoption_series[index] += 1
+            usage_series[index] += 1
+    from ..models.appointment import Appointment, AppointmentKind
+    for created_at in db.session.scalars(
+        db.select(Appointment.created_at).filter_by(kind=AppointmentKind.VET_VISIT)
+    ).all():
+        index = month_index(created_at)
+        if index is not None:
+            usage_series[index] += 1
+    for created_at in db.session.scalars(
+        db.select(PlatformMetricEvent.created_at).filter_by(event_type="ai_match")
+    ).all():
+        index = month_index(created_at)
+        if index is not None:
+            usage_series[index] += 1
 
     return render_template(
         "admin/dashboard.html",
         stats=stats,
         pending_shelters=pending_shelters,
         pending_vets=pending_vets,
-        queue=queue,
+        shelter_queue=shelter_queue,
+        vet_queue=vet_queue,
+        labels=labels,
+        adoption_series=adoption_series,
+        usage_series=usage_series,
         active_nav="overview",
     )
 
@@ -247,7 +294,7 @@ def message_action(message_id: int):
 @role_required(UserRole.ADMIN)
 def lost_found():
     selected_view = request.args.get("view", "recent")
-    if selected_view not in {"recent", "lost", "reunited"}:
+    if selected_view not in {"recent", "lost", "found", "reunited"}:
         selected_view = "recent"
     query = db.select(LostFoundReport)
     if selected_view == "lost":
@@ -255,12 +302,11 @@ def lost_found():
             LostFoundReport.kind == ReportKind.LOST,
             LostFoundReport.status != ReportStatus.REUNITED,
         )
+    elif selected_view == "found":
+        query = query.filter(LostFoundReport.kind == ReportKind.FOUND)
     elif selected_view == "reunited":
         query = query.filter(
-            db.or_(
-                LostFoundReport.kind == ReportKind.FOUND,
-                LostFoundReport.status == ReportStatus.REUNITED,
-            )
+            LostFoundReport.status == ReportStatus.REUNITED
         )
     reports = db.session.scalars(
         query
@@ -268,10 +314,6 @@ def lost_found():
         .limit(500)
     ).all()
     total_reports = _count(LostFoundReport)
-    reunited_condition = db.or_(
-        LostFoundReport.kind == ReportKind.FOUND,
-        LostFoundReport.status == ReportStatus.REUNITED,
-    )
     counts = {
         "recent": total_reports,
         "lost": db.session.scalar(
@@ -280,9 +322,14 @@ def lost_found():
                 LostFoundReport.status != ReportStatus.REUNITED,
             )
         ) or 0,
+        "found": db.session.scalar(
+            db.select(db.func.count()).select_from(LostFoundReport).filter(
+                LostFoundReport.kind == ReportKind.FOUND
+            )
+        ) or 0,
         "reunited": db.session.scalar(
             db.select(db.func.count()).select_from(LostFoundReport).filter(
-                reunited_condition
+                LostFoundReport.status == ReportStatus.REUNITED
             )
         ) or 0,
     }
@@ -300,12 +347,17 @@ def lost_found():
 @role_required(UserRole.ADMIN)
 def verify_shelters():
     selected_view = request.args.get("view", "all")
-    if selected_view not in {"all", "visit", "approved"}:
+    if selected_view not in {"all", "visit", "approved", "rejected"}:
         selected_view = "all"
     pending_registration = Shelter.owner.has(
         User.registration_status == "pending"
     )
-    if selected_view == "visit":
+    if selected_view == "rejected":
+        status_filter = db.and_(
+            Shelter.owner_id.is_not(None),
+            Shelter.owner.has(User.registration_status == "rejected"),
+        )
+    elif selected_view == "visit":
         status_filter = db.and_(
             Shelter.is_verified.is_(False),
             Shelter.owner_id.is_not(None),
@@ -503,7 +555,7 @@ def verify_shelter(shelter_id: int):
 @role_required(UserRole.ADMIN)
 def verify_vets():
     selected_view = request.args.get("view", "all")
-    if selected_view not in {"all", "visit", "approved"}:
+    if selected_view not in {"all", "visit", "approved", "rejected"}:
         selected_view = "all"
     pending_registration = db.and_(
         VetProfile.is_verified.is_(False),
@@ -513,7 +565,10 @@ def verify_vets():
         VetProfile.is_verified.is_(True),
         User.registration_status == "approved",
     )
-    if selected_view == "visit":
+    rejected_registration = User.registration_status == "rejected"
+    if selected_view == "rejected":
+        status_filter = rejected_registration
+    elif selected_view == "visit":
         status_filter = pending_registration
     elif selected_view == "approved":
         status_filter = approved_registration
@@ -632,8 +687,6 @@ def _approval_credentials(user: User, display_name: str) -> str:
 @admin_bp.route("/analytics")
 @role_required(UserRole.ADMIN)
 def analytics():
-    from ..models.appointment import Appointment, AppointmentKind
-
     periods = {"7d": 7, "30d": 30, "90d": 90, "1y": 365}
     period = request.args.get("period", "30d")
     if period not in periods:
@@ -685,9 +738,13 @@ def analytics():
         "shelters": [0] * bucket_count,
         "vets": [0] * bucket_count,
         "adoptions": [0] * bucket_count,
-        "vet_bookings": [0] * bucket_count,
         "ai_matches": [0] * bucket_count,
         "pet_returns": [0] * bucket_count,
+        "lost": [0] * bucket_count,
+        "found": [0] * bucket_count,
+        "reunited": [0] * bucket_count,
+        "blog_posts": [0] * bucket_count,
+        "success_stories": [0] * bucket_count,
     }
 
     users = db.session.execute(
@@ -719,17 +776,6 @@ def analytics():
                 series["adoptions"][index] += 1
     adoptions = sum(series["adoptions"])
 
-    vet_bookings = db.session.scalars(
-        db.select(Appointment.created_at).filter(
-            Appointment.kind == AppointmentKind.VET_VISIT,
-            Appointment.created_at >= start,
-        )
-    ).all()
-    for created_at in vet_bookings:
-        index = bucket_index(created_at)
-        if index is not None:
-            series["vet_bookings"][index] += 1
-
     metric_events = db.session.execute(
         db.select(PlatformMetricEvent.event_type, PlatformMetricEvent.created_at)
         .filter(PlatformMetricEvent.created_at >= start)
@@ -750,45 +796,60 @@ def analytics():
         if index is not None:
             series["pet_returns"][index] += 1
 
-    lost_found_reports = db.session.scalars(
-        db.select(LostFoundReport).filter(LostFoundReport.created_at >= start)
+    from ..models.appointment import Appointment, AppointmentKind
+    appointment_dates = db.session.scalars(
+        db.select(Appointment.created_at).filter(
+            Appointment.kind == AppointmentKind.VET_VISIT,
+            Appointment.created_at >= start,
+        )
     ).all()
-    lost_count = sum(
-        report.kind == ReportKind.LOST and report.status != ReportStatus.REUNITED
-        for report in lost_found_reports
-    )
+    vet_appointments = [0] * bucket_count
+    for created_at in appointment_dates:
+        index = bucket_index(created_at)
+        if index is not None:
+            vet_appointments[index] += 1
+
+    blog_dates = db.session.scalars(
+        db.select(BlogPost.created_at).filter(
+            BlogPost.published.is_(True),
+            BlogPost.created_at >= start,
+        )
+    ).all()
+    for created_at in blog_dates:
+        index = bucket_index(created_at)
+        if index is not None:
+            series["blog_posts"][index] += 1
+
+    story_dates = db.session.scalars(
+        db.select(SuccessStory.created_at).filter(SuccessStory.created_at >= start)
+    ).all()
+    for created_at in story_dates:
+        index = bucket_index(created_at)
+        if index is not None:
+            series["success_stories"][index] += 1
+
+    lost_found_reports = db.session.scalars(
+        db.select(LostFoundReport)
+        .filter(LostFoundReport.created_at >= start)
+        .order_by(LostFoundReport.created_at.desc())
+    ).all()
+    all_lost_found_reports = db.session.scalars(db.select(LostFoundReport)).all()
+    lost_count = sum(report.kind == ReportKind.LOST for report in all_lost_found_reports)
+    found_count = sum(report.kind == ReportKind.FOUND for report in all_lost_found_reports)
     reunited_count = sum(
-        report.kind == ReportKind.FOUND or report.status == ReportStatus.REUNITED
-        for report in lost_found_reports
+        report.status == ReportStatus.REUNITED for report in all_lost_found_reports
     )
-    lost_found_total = lost_count + reunited_count
-    lost_found_rates = {
-        "lost": round(100 * lost_count / lost_found_total, 1)
-        if lost_found_total else 0,
-        "reunited": round(100 * reunited_count / lost_found_total, 1)
-        if lost_found_total else 0,
-        "lost_count": lost_count,
-        "reunited_count": reunited_count,
-        "total": lost_found_total,
-    }
-    lost_found_map = [
-        {
-            "id": report.id,
-            "name": report.pet_name or report.species or "Pet",
-            "kind": (
-                "reunited"
-                if report.kind == ReportKind.FOUND or report.status == ReportStatus.REUNITED
-                else "lost"
-            ),
-            "status": report.status.value,
-            "location": report.location or "",
-            "lat": report.lat,
-            "lng": report.lng,
-        }
-        for report in lost_found_reports
-        if report.lat is not None and report.lng is not None
-        and -90 <= report.lat <= 90 and -180 <= report.lng <= 180
-    ]
+    for report in lost_found_reports:
+        index = bucket_index(report.created_at)
+        if index is not None and report.kind == ReportKind.LOST:
+            series["lost"][index] += 1
+        if index is not None and report.kind == ReportKind.FOUND:
+            series["found"][index] += 1
+    for report in all_lost_found_reports:
+        if report.status == ReportStatus.REUNITED:
+            index = bucket_index(report.updated_at)
+            if index is not None:
+                series["reunited"][index] += 1
 
     all_applications = db.session.scalars(
         db.select(Application).filter(Application.stage != ApplicationStage.DRAFT)
@@ -806,52 +867,45 @@ def analytics():
               / len(completed_applications), 1)
         if completed_applications else 0
     )
+    registered_users = _count(User) - _count(User, role=UserRole.ADMIN)
+    tracked_actions = (
+        sum(series["adoptions"])
+        + sum(series["pet_returns"])
+        + sum(series["ai_matches"])
+        + sum(vet_appointments)
+        + sum(series["lost"])
+        + sum(series["found"])
+        + sum(series["reunited"])
+        + sum(series["blog_posts"])
+        + sum(series["success_stories"])
+    )
     stats = {
         "adopters": sum(series["adopters"]),
         "shelters": sum(series["shelters"]),
         "vets": sum(series["vets"]),
         "adoptions": adoptions,
         "adoption_rate": adoption_rate,
-        "vet_bookings": sum(series["vet_bookings"]),
         "ai_matches": sum(series["ai_matches"]),
         "pet_returns": sum(series["pet_returns"]),
         "pet_return_rate": return_rate,
+        "lost": lost_count,
+        "found": found_count,
+        "reunited": reunited_count,
+        "usage_rate": round(tracked_actions / registered_users, 2)
+        if registered_users else 0,
     }
-    species_counts = {species.label: 0 for species in Species}
-    for application in completed_applications:
-        if application.pet:
-            label = application.pet.species.label
-            species_counts[label] = species_counts.get(label, 0) + 1
-    funnel = {
-        "Applied": len(all_applications),
-        "In review": sum(
-            application.stage == ApplicationStage.REVIEW
-            for application in all_applications
-        ),
-        "Home visit": sum(
-            application.stage == ApplicationStage.HOME_VISIT
-            for application in all_applications
-        ),
-        "Adopted": len(completed_applications),
+    species_counts = {
+        species.label: db.session.scalar(
+            db.select(db.func.count()).select_from(Pet).filter_by(species=species)
+        ) or 0
+        for species in Species
     }
-    chart_series = [
-        {"label": "Adopter registrations", "data": series["adopters"], "color": "#a85d43"},
-        {"label": "Shelter registrations", "data": series["shelters"], "color": "#e6a23c"},
-        {"label": "Vet registrations", "data": series["vets"], "color": "#4b8f8c"},
-        {"label": "Completed adoptions", "data": series["adoptions"], "color": "#6a7fc1"},
-        {"label": "Vet bookings", "data": series["vet_bookings"], "color": "#3b82a0"},
-        {"label": "AI match usage", "data": series["ai_matches"], "color": "#8b6bb5"},
-        {"label": "Returned pets", "data": series["pet_returns"], "color": "#c75d5d"},
-    ]
     return render_template(
         "admin/analytics.html",
         period=period,
         stats=stats,
         labels=labels,
-        chart_series=chart_series,
+        series=series,
         species_counts=species_counts,
-        funnel=funnel,
-        lost_found_rates=lost_found_rates,
-        lost_found_map=lost_found_map,
         active_nav="analytics",
     )
