@@ -2,6 +2,7 @@
 
 /* ---- Hero ---- */
 .hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: var(--space-7); align-items: center; }
+.hero-logo { display: block; width: 100%; max-width: 380px; height: auto; margin: 0 0 var(--space-4); border-radius: var(--radius-lg); }
 .hero-title { font-size: 3rem; line-height: 1.1; margin: var(--space-3) 0; }
 .hero-search { display: flex; gap: var(--space-3); align-items: flex-end; margin-top: var(--space-5); padding: var(--space-4); }
 .hero-search-field { flex: 1; }

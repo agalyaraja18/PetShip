@@ -8,6 +8,10 @@
 {% block content %}
 <section class="hero">
   <div class="hero-copy">
+    <img class="hero-logo"
+         src="{{ url_for('static', filename='img/petship-logo.png') }}"
+         alt="PetShip: a dog, cat, bird and goldfish sailing together on a boat"
+         width="800" height="534">
     <span class="tag">{{ APP_TAGLINE }}</span>
     <h1 class="hero-title">Every pet deserves <span class="text-primary">a loving home</span></h1>
     <p class="text-muted text-lg">Meet adoptable pets from verified shelters, find your best match with AI, and get support for a lifetime of care.</p>
