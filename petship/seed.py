@@ -1,8 +1,11 @@
-"""Demo data seeding (`flask seed`).
+"""Demo data seeding (`flask seed`, `flask seed-demo-accounts`).
 
 Populates shelters, a few demo users, and a catalogue of adoptable pets that
 mirror the mock designs (Bruno, Daisy, Mochi, etc.). Idempotent: running it
 again clears and rebuilds the demo rows.
+
+The account-only command provisions the four demo logins without rebuilding
+other data and requires separate private passwords for admin and other roles.
 """
 from __future__ import annotations
 
@@ -22,6 +25,13 @@ from .learning_content import lesson_body
 from .models.reminder import Notification
 from .models.lifestyle import ExpenseFrequency, ExpenseItem, Place, PlaceCategory
 from .models.vet import VetProfile
+
+_DEMO_LOGIN_ACCOUNTS = (
+    ("agalya@demo.petship", "Agalya", "R", UserRole.ADOPTER),
+    ("kavya@demo.petship", "Kavya", "S", UserRole.SHELTER),
+    ("ananya@demo.petship", "Ananya", "Rao", UserRole.VET),
+    ("admin@demo.petship", "Platform", "Admin", UserRole.ADMIN),
+)
 
 
 # Pet photos are served from local static files (downloaded into
@@ -850,6 +860,35 @@ def _seed_content():
     db.session.commit()
 
 
+def seed_demo_accounts(account_password: str, admin_password: str) -> int:
+    """Create or refresh the four demo logins without changing other data."""
+    if len(account_password) < 16:
+        raise ValueError("DEMO_ACCOUNT_PASSWORD must be at least 16 characters.")
+    if len(admin_password) < 16:
+        raise ValueError("DEMO_ADMIN_PASSWORD must be at least 16 characters.")
+    if account_password == admin_password:
+        raise ValueError("DEMO_ADMIN_PASSWORD must differ from DEMO_ACCOUNT_PASSWORD.")
+
+    for email, first_name, last_name, role in _DEMO_LOGIN_ACCOUNTS:
+        user = db.session.scalar(db.select(User).filter_by(email=email))
+        if user is None:
+            user = User(email=email)
+            db.session.add(user)
+        user.first_name = first_name
+        user.last_name = last_name
+        user.role = role
+        user.is_verified = True
+        user.is_active = True
+        user.registration_status = "approved"
+        user.force_password_reset = False
+        user.set_password(
+            admin_password if role == UserRole.ADMIN else account_password
+        )
+
+    db.session.commit()
+    return len(_DEMO_LOGIN_ACCOUNTS)
+
+
 @click.command("seed")
 @with_appcontext
 def seed_command():
@@ -863,5 +902,26 @@ def seed_command():
     )
 
 
+@click.command("seed-demo-accounts")
+@with_appcontext
+def seed_demo_accounts_command():
+    """Provision demo logins using private demo-account password settings."""
+    import os
+
+    account_password = os.environ.get("DEMO_ACCOUNT_PASSWORD")
+    admin_password = os.environ.get("DEMO_ADMIN_PASSWORD")
+    if not account_password or not admin_password:
+        raise click.ClickException(
+            "Set DEMO_ACCOUNT_PASSWORD and DEMO_ADMIN_PASSWORD to private passwords "
+            "of at least 16 characters; use different values."
+        )
+    try:
+        count = seed_demo_accounts(account_password, admin_password)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"Provisioned {count} demo login accounts.")
+
+
 def register_seed(app: Flask) -> None:
     app.cli.add_command(seed_command)
+    app.cli.add_command(seed_demo_accounts_command)

@@ -40,6 +40,59 @@ def test_valid_login_redirects_to_dashboard(client, app):
     assert resp.headers["Location"].endswith("/auth/dashboard")
 
 
+def test_configured_demo_accounts_can_log_in_for_every_role(client, app, monkeypatch):
+    monkeypatch.setenv("DEMO_ACCOUNT_PASSWORD", "private-demo-password-2026")
+    monkeypatch.setenv("DEMO_ADMIN_PASSWORD", "private-admin-password-2026")
+    result = app.test_cli_runner().invoke(args=["seed-demo-accounts"])
+    assert result.exit_code == 0, result.output
+
+    accounts = (
+        (UserRole.ADOPTER, "agalya@demo.petship"),
+        (UserRole.SHELTER, "kavya@demo.petship"),
+        (UserRole.VET, "ananya@demo.petship"),
+        (UserRole.ADMIN, "admin@demo.petship"),
+    )
+    for role, email in accounts:
+        password = (
+            "private-admin-password-2026"
+            if role == UserRole.ADMIN
+            else "private-demo-password-2026"
+        )
+        response = client.post(
+            "/auth/login",
+            data={
+                "role": role.value,
+                "email": email,
+                "password": password,
+            },
+            follow_redirects=False,
+        )
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/auth/dashboard")
+        client.get("/auth/logout")
+
+
+@pytest.mark.parametrize(
+    "account_password,admin_password",
+    [
+        (None, "private-admin-password-2026"),
+        ("password123", "private-admin-password-2026"),
+        ("private-demo-password-2026", "private-demo-password-2026"),
+    ],
+)
+def test_demo_account_seed_command_requires_private_passwords(
+    app, monkeypatch, account_password, admin_password
+):
+    if account_password is None:
+        monkeypatch.delenv("DEMO_ACCOUNT_PASSWORD", raising=False)
+    else:
+        monkeypatch.setenv("DEMO_ACCOUNT_PASSWORD", account_password)
+    monkeypatch.setenv("DEMO_ADMIN_PASSWORD", admin_password)
+    result = app.test_cli_runner().invoke(args=["seed-demo-accounts"])
+    assert result.exit_code != 0
+    assert "password" in result.output.lower()
+
+
 def test_login_rejects_role_mismatch_for_email_and_user_id(client, app):
     user = make_user("adopter@example.com")
     user.public_id = "ADP-00000001"

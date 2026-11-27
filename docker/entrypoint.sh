@@ -63,5 +63,15 @@ flask --app wsgi db upgrade || {
     exit 1
 }
 
+if [ -n "${DEMO_ACCOUNT_PASSWORD:-}" ] && [ -n "${DEMO_ADMIN_PASSWORD:-}" ]; then
+    echo "[entrypoint] Provisioning configured demo login accounts..."
+    flask --app wsgi seed-demo-accounts || {
+        echo "[entrypoint] Demo account provisioning failed." >&2
+        exit 1
+    }
+else
+    echo "[entrypoint] DEMO_ACCOUNT_PASSWORD and DEMO_ADMIN_PASSWORD must both be set; demo login accounts are not provisioned."
+fi
+
 echo "[entrypoint] Starting: $*"
 exec "$@"
