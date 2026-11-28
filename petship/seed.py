@@ -344,10 +344,13 @@ def _seed_community(agalya, vet):
 
 def _seed_learning():
     """Seed the fixed set of built-in learning paths available to all users."""
-    LearningPath.query.delete()
-    db.session.commit()
-
     def path(slug, title, level, summary, duration, quizzes, lessons):
+        existing = db.session.scalar(
+            db.select(LearningPath).filter_by(slug=slug)
+        )
+        if existing is not None:
+            return existing
+
         p = LearningPath(slug=slug, title=title, level=level, summary=summary,
                          duration_min=duration, quiz_count=quizzes)
         db.session.add(p)
@@ -913,8 +916,14 @@ def seed_demo_accounts(account_password: str, admin_password: str) -> int:
 
 
 def _demo_seed_blocking_table() -> str | None:
+    preserved_tables = {
+        User.__tablename__,
+        LearningPath.__tablename__,
+        Lesson.__tablename__,
+    }
+
     for table in db.metadata.sorted_tables:
-        if table.name == User.__tablename__:
+        if table.name in preserved_tables:
             continue
         if db.session.execute(db.select(table).limit(1)).first() is not None:
             return table.name

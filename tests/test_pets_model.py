@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from petship.extensions import db
+from petship.models.learning import LearningPath, Lesson
 from petship.models.pet import AgeGroup, Pet, PetStatus, Sex, Size, Species
 from petship.models.shelter import Shelter
 from petship.models.user import User, UserRole
@@ -170,6 +171,38 @@ def test_seed_demo_site_preserves_existing_users_and_seeds_content(app, monkeypa
     assert db.session.query(Shelter).count() == 3
     assert db.session.query(Pet).count() == 11
     assert db.session.get(User, existing_user.id) is not None
+
+
+def test_seed_demo_site_preserves_migration_learning_paths(app, monkeypatch):
+    monkeypatch.setenv("DEMO_ACCOUNT_PASSWORD", "private-demo-password-2026")
+    monkeypatch.setenv("DEMO_ADMIN_PASSWORD", "private-admin-password-2026")
+    fish_path = LearningPath(
+        slug="swim-with-fish",
+        title="Swim with Fish",
+        level="Beginner",
+        summary="Built-in path from the database migration.",
+        duration_min=40,
+        quiz_count=1,
+    )
+    fish_lesson = Lesson(
+        path=fish_path,
+        position=1,
+        title="Safe aquarium",
+        body="Prepare the aquarium before adding fish.",
+    )
+    db.session.add_all([fish_path, fish_lesson])
+    db.session.commit()
+
+    result = app.test_cli_runner().invoke(args=["seed-demo-site"])
+
+    assert result.exit_code == 0, result.output
+    assert db.session.query(Shelter).count() == 3
+    assert db.session.query(Pet).count() == 11
+    assert db.session.get(LearningPath, fish_path.id) is not None
+    assert db.session.get(Lesson, fish_lesson.id) is not None
+    assert db.session.scalar(
+        db.select(LearningPath).filter_by(slug="dog-parent")
+    ) is not None
 
 
 def test_seed_draft_and_adopted_present(app):
