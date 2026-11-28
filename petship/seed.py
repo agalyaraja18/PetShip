@@ -9,6 +9,8 @@ other data and requires separate private passwords for admin and other roles.
 """
 from __future__ import annotations
 
+import os
+
 import click
 from flask import Flask
 from flask.cli import with_appcontext
@@ -93,6 +95,9 @@ def seed_data() -> dict:
     db.session.commit()
 
     # ---- Demo users ----
+    account_password = os.environ.get("DEMO_ACCOUNT_PASSWORD") or "password123"
+    admin_password = os.environ.get("DEMO_ADMIN_PASSWORD") or "password123"
+
     def mkuser(email, first, last, role, verified=True):
         u = User(
             email=email,
@@ -101,7 +106,9 @@ def seed_data() -> dict:
             role=role,
             is_verified=verified,
         )
-        u.set_password("password123")
+        u.set_password(
+            admin_password if role == UserRole.ADMIN else account_password
+        )
         u.is_active = True
         db.session.add(u)
         return u
@@ -860,14 +867,30 @@ def _seed_content():
     db.session.commit()
 
 
-def seed_demo_accounts(account_password: str, admin_password: str) -> int:
-    """Create or refresh the four demo logins without changing other data."""
+def _validate_demo_passwords(account_password: str, admin_password: str) -> None:
     if len(account_password) < 16:
         raise ValueError("DEMO_ACCOUNT_PASSWORD must be at least 16 characters.")
     if len(admin_password) < 16:
         raise ValueError("DEMO_ADMIN_PASSWORD must be at least 16 characters.")
     if account_password == admin_password:
         raise ValueError("DEMO_ADMIN_PASSWORD must differ from DEMO_ACCOUNT_PASSWORD.")
+
+
+def _configured_demo_passwords() -> tuple[str, str]:
+    account_password = os.environ.get("DEMO_ACCOUNT_PASSWORD")
+    admin_password = os.environ.get("DEMO_ADMIN_PASSWORD")
+    if not account_password or not admin_password:
+        raise ValueError(
+            "Set DEMO_ACCOUNT_PASSWORD and DEMO_ADMIN_PASSWORD to private passwords "
+            "of at least 16 characters; use different values."
+        )
+    _validate_demo_passwords(account_password, admin_password)
+    return account_password, admin_password
+
+
+def seed_demo_accounts(account_password: str, admin_password: str) -> int:
+    """Create or refresh the four demo logins without changing other data."""
+    _validate_demo_passwords(account_password, admin_password)
 
     for email, first_name, last_name, role in _DEMO_LOGIN_ACCOUNTS:
         user = db.session.scalar(db.select(User).filter_by(email=email))
@@ -889,6 +912,23 @@ def seed_demo_accounts(account_password: str, admin_password: str) -> int:
     return len(_DEMO_LOGIN_ACCOUNTS)
 
 
+def _database_is_empty_for_demo_seed() -> bool:
+    non_demo_user_id = db.session.scalar(
+        db.select(User.id)
+        .where(~User.email.like("%@demo.petship"))
+        .limit(1)
+    )
+    if non_demo_user_id is not None:
+        return False
+
+    for table in db.metadata.sorted_tables:
+        if table.name == User.__tablename__:
+            continue
+        if db.session.execute(db.select(table).limit(1)).first() is not None:
+            return False
+    return True
+
+
 @click.command("seed")
 @with_appcontext
 def seed_command():
@@ -902,20 +942,36 @@ def seed_command():
     )
 
 
+@click.command("seed-demo-site")
+@with_appcontext
+def seed_demo_site_command():
+    """Seed sample site content only when the database has no app data."""
+    try:
+        _configured_demo_passwords()
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    if not _database_is_empty_for_demo_seed():
+        click.echo(
+            "Skipped demo content seeding: the database already contains application data."
+        )
+        return
+
+    summary = seed_data()
+    click.echo(
+        f"Seeded demo site: {summary['users']} users, {summary['shelters']} shelters, "
+        f"{summary['pets']} pets ({summary['available']} available), "
+        f"{summary['blog']} blog posts, {summary['stories']} stories, "
+        f"{summary['faqs']} FAQs, {summary['vets']} vets."
+    )
+
+
 @click.command("seed-demo-accounts")
 @with_appcontext
 def seed_demo_accounts_command():
     """Provision demo logins using private demo-account password settings."""
-    import os
-
-    account_password = os.environ.get("DEMO_ACCOUNT_PASSWORD")
-    admin_password = os.environ.get("DEMO_ADMIN_PASSWORD")
-    if not account_password or not admin_password:
-        raise click.ClickException(
-            "Set DEMO_ACCOUNT_PASSWORD and DEMO_ADMIN_PASSWORD to private passwords "
-            "of at least 16 characters; use different values."
-        )
     try:
+        account_password, admin_password = _configured_demo_passwords()
         count = seed_demo_accounts(account_password, admin_password)
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
@@ -924,4 +980,5 @@ def seed_demo_accounts_command():
 
 def register_seed(app: Flask) -> None:
     app.cli.add_command(seed_command)
+    app.cli.add_command(seed_demo_site_command)
     app.cli.add_command(seed_demo_accounts_command)

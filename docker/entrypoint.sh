@@ -64,13 +64,18 @@ flask --app wsgi db upgrade || {
 }
 
 if [ -n "${DEMO_ACCOUNT_PASSWORD:-}" ] && [ -n "${DEMO_ADMIN_PASSWORD:-}" ]; then
+    echo "[entrypoint] Seeding demo content if the database is empty..."
+    flask --app wsgi seed-demo-site || {
+        echo "[entrypoint] Demo site seeding failed." >&2
+        exit 1
+    }
     echo "[entrypoint] Provisioning configured demo login accounts..."
     flask --app wsgi seed-demo-accounts || {
         echo "[entrypoint] Demo account provisioning failed." >&2
         exit 1
     }
 else
-    echo "[entrypoint] DEMO_ACCOUNT_PASSWORD and DEMO_ADMIN_PASSWORD must both be set; demo login accounts are not provisioned."
+    echo "[entrypoint] DEMO_ACCOUNT_PASSWORD and DEMO_ADMIN_PASSWORD must both be set; demo accounts and content are not provisioned."
 fi
 
 echo "[entrypoint] Starting: $*"

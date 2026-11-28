@@ -118,6 +118,41 @@ def test_seed_creates_roles(app):
     assert roles["admin@demo.petship"] is UserRole.ADMIN
 
 
+def test_seed_demo_site_populates_fresh_database_with_configured_passwords(
+    app, monkeypatch
+):
+    monkeypatch.setenv("DEMO_ACCOUNT_PASSWORD", "private-demo-password-2026")
+    monkeypatch.setenv("DEMO_ADMIN_PASSWORD", "private-admin-password-2026")
+
+    result = app.test_cli_runner().invoke(args=["seed-demo-site"])
+
+    assert result.exit_code == 0, result.output
+    assert db.session.query(Shelter).count() == 3
+    assert db.session.query(Pet).count() == 11
+    adopter = db.session.scalar(
+        db.select(User).filter_by(email="agalya@demo.petship")
+    )
+    admin = db.session.scalar(
+        db.select(User).filter_by(email="admin@demo.petship")
+    )
+    assert adopter.check_password("private-demo-password-2026")
+    assert admin.check_password("private-admin-password-2026")
+
+
+def test_seed_demo_site_skips_database_with_existing_app_data(app, monkeypatch):
+    monkeypatch.setenv("DEMO_ACCOUNT_PASSWORD", "private-demo-password-2026")
+    monkeypatch.setenv("DEMO_ADMIN_PASSWORD", "private-admin-password-2026")
+    shelter = make_shelter()
+
+    result = app.test_cli_runner().invoke(args=["seed-demo-site"])
+
+    assert result.exit_code == 0, result.output
+    assert "already contains application data" in result.output
+    assert db.session.query(Shelter).count() == 1
+    assert db.session.get(Shelter, shelter.id) is not None
+    assert db.session.query(Pet).count() == 0
+
+
 def test_seed_draft_and_adopted_present(app):
     seed_data()
     statuses = {p.name: p.status for p in db.session.scalars(db.select(Pet)).all()}

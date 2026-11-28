@@ -10,9 +10,10 @@
 # **Session pooler** connection string (IPv4), e.g.:
 #   postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
 # The app appends sslmode=require automatically.
-# To enable the demo logins, set DEMO_ACCOUNT_PASSWORD and DEMO_ADMIN_PASSWORD
+# To enable the demo site, set DEMO_ACCOUNT_PASSWORD and DEMO_ADMIN_PASSWORD
 # in the service environment to different private passwords (16+ characters).
-# The admin password must not be shared. This provisions only demo accounts.
+# On an empty database startup seeds sample content and accounts; existing
+# application data is left untouched. Keep the admin password private.
 # ============================================================================
 services:
   - type: web
