@@ -912,21 +912,13 @@ def seed_demo_accounts(account_password: str, admin_password: str) -> int:
     return len(_DEMO_LOGIN_ACCOUNTS)
 
 
-def _database_is_empty_for_demo_seed() -> bool:
-    non_demo_user_id = db.session.scalar(
-        db.select(User.id)
-        .where(~User.email.like("%@demo.petship"))
-        .limit(1)
-    )
-    if non_demo_user_id is not None:
-        return False
-
+def _demo_seed_blocking_table() -> str | None:
     for table in db.metadata.sorted_tables:
         if table.name == User.__tablename__:
             continue
         if db.session.execute(db.select(table).limit(1)).first() is not None:
-            return False
-    return True
+            return table.name
+    return None
 
 
 @click.command("seed")
@@ -951,9 +943,11 @@ def seed_demo_site_command():
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
 
-    if not _database_is_empty_for_demo_seed():
+    blocking_table = _demo_seed_blocking_table()
+    if blocking_table is not None:
         click.echo(
-            "Skipped demo content seeding: the database already contains application data."
+            "Skipped demo content seeding: "
+            f"table {blocking_table} already contains application data."
         )
         return
 

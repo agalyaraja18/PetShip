@@ -153,6 +153,25 @@ def test_seed_demo_site_skips_database_with_existing_app_data(app, monkeypatch):
     assert db.session.query(Pet).count() == 0
 
 
+def test_seed_demo_site_preserves_existing_users_and_seeds_content(app, monkeypatch):
+    monkeypatch.setenv("DEMO_ACCOUNT_PASSWORD", "private-demo-password-2026")
+    monkeypatch.setenv("DEMO_ADMIN_PASSWORD", "private-admin-password-2026")
+    existing_user = User(
+        email="existing@example.com",
+        first_name="Existing",
+        role=UserRole.ADOPTER,
+    )
+    db.session.add(existing_user)
+    db.session.commit()
+
+    result = app.test_cli_runner().invoke(args=["seed-demo-site"])
+
+    assert result.exit_code == 0, result.output
+    assert db.session.query(Shelter).count() == 3
+    assert db.session.query(Pet).count() == 11
+    assert db.session.get(User, existing_user.id) is not None
+
+
 def test_seed_draft_and_adopted_present(app):
     seed_data()
     statuses = {p.name: p.status for p in db.session.scalars(db.select(Pet)).all()}
